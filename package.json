@@ -1,0 +1,74 @@
+{
+  "name": "@lifestream/chatbot-widget",
+  "version": "1.0.0",
+  "description": "Framework-agnostic AI chatbot widget - embeddable on any website with a single script tag",
+  "type": "module",
+  "main": "./dist/lifestream-chatbot.umd.js",
+  "module": "./dist/lifestream-chatbot.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/lifestream-chatbot.es.js",
+      "require": "./dist/lifestream-chatbot.umd.js"
+    },
+    "./style.css": "./dist/lifestream-chatbot.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lifestream-dynamics/chatbot-widget.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lifestream-dynamics/chatbot-widget/issues"
+  },
+  "homepage": "https://github.com/lifestream-dynamics/chatbot-widget#readme",
+  "keywords": [
+    "chatbot",
+    "widget",
+    "ai",
+    "gemini",
+    "embed",
+    "embeddable",
+    "chat",
+    "customer-support",
+    "ai-assistant",
+    "react",
+    "vanilla-js",
+    "framework-agnostic",
+    "markdown",
+    "customizable",
+    "lifestream"
+  ],
+  "author": "Lifestream Dynamics <eric@mittonvillage.com>",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "terser": "^5.36.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  }
+}

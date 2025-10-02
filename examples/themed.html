@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom Theme Example</title>
+
+  <!-- Include the chatbot CSS -->
+  <link rel="stylesheet" href="../dist/lifestream-chatbot.css">
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .theme-info {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      margin-top: 1rem;
+    }
+
+    .theme-info code {
+      background: #e9ecef;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Custom Theme Example</h1>
+    <p>
+      This example demonstrates how to customize the chatbot's appearance to match your website's branding.
+      The chatbot now uses a purple color scheme positioned in the bottom-right corner.
+    </p>
+
+    <div class="theme-info">
+      <strong>Custom Theme Settings:</strong>
+      <ul>
+        <li>Primary Color: <code>#667eea</code> (Purple)</li>
+        <li>Secondary Color: <code>#764ba2</code> (Dark Purple)</li>
+        <li>Position: <code>bottom-right</code></li>
+        <li>Custom welcome message and title</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Include the chatbot script -->
+  <script src="../dist/lifestream-chatbot.iife.js"></script>
+
+  <!-- Initialize with custom theme -->
+  <script>
+    initLifestreamChatbot({
+      apiUrl: 'http://localhost:3177/api/v1',
+      apiKey: 'your-api-key-here',
+
+      // Custom theme configuration
+      theme: {
+        primaryColor: '#667eea',
+        secondaryColor: '#764ba2',
+        backgroundColor: '#1a1a2e',
+        surfaceColor: '#16213e',
+        textColor: '#eaeaea',
+        borderColor: '#0f3460',
+        position: 'bottom-right',
+        positionOffset: {
+          x: '2rem',
+          y: '2rem'
+        }
+      },
+
+      // Custom messaging
+      title: 'Purple Bot',
+      subtitle: 'How can I help?',
+      welcomeMessage: 'Welcome! I\'m your custom-themed AI assistant. How can I help you today?',
+
+      // Custom quick actions
+      quickActions: [
+        { label: '👋 Say Hello', message: 'Hello!' },
+        { label: '❓ Help', message: 'I need help' },
+        { label: '📧 Contact', message: 'How can I contact you?' }
+      ]
+    });
+  </script>
+</body>
+</html>

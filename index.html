@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lifestream Chatbot Widget - Development Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 1.25rem;
+      color: #b0b0b0;
+      margin-bottom: 3rem;
+    }
+
+    .card {
+      background: #151515;
+      border: 1px solid #2a2a2a;
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #00d9ff;
+    }
+
+    .card p {
+      color: #b0b0b0;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .code-block {
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    code {
+      color: #00ff88;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .feature {
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    .feature h3 {
+      color: #00d9ff;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature p {
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%);
+      color: #000;
+      text-decoration: none;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <div class="container">
+    <h1>Lifestream Chatbot Widget</h1>
+    <p class="subtitle">Embeddable AI-powered chatbot for your website - Development Preview</p>
+
+    <div class="card">
+      <h2>About This Widget</h2>
+      <p>
+        This is a standalone, embeddable chatbot widget powered by Google Gemini AI.
+        It can be integrated into any website with just a few lines of code.
+      </p>
+      <p>
+        <strong>Look for the chatbot button in the bottom-left corner!</strong> Click it to start chatting.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Features</h2>
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>Framework Agnostic</h3>
+          <p>Works with vanilla JS, React, Vue, Angular, or any web framework</p>
+        </div>
+        <div class="feature">
+          <h3>Customizable Theme</h3>
+          <p>Full control over colors, positioning, and appearance</p>
+        </div>
+        <div class="feature">
+          <h3>Markdown Support</h3>
+          <p>Rich text formatting with code blocks and lists</p>
+        </div>
+        <div class="feature">
+          <h3>Session Management</h3>
+          <p>Maintains conversation context across page reloads</p>
+        </div>
+        <div class="feature">
+          <h3>Quick Actions</h3>
+          <p>Customizable quick reply buttons for common questions</p>
+        </div>
+        <div class="feature">
+          <h3>Responsive Design</h3>
+          <p>Works beautifully on desktop, tablet, and mobile</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick Start</h2>
+      <p>Add the widget to your website in 3 simple steps:</p>
+
+      <div class="code-block">
+        <code>
+&lt;!-- 1. Include the CSS --&gt;<br>
+&lt;link rel="stylesheet" href="lifestream-chatbot.css"&gt;<br>
+<br>
+&lt;!-- 2. Include the script --&gt;<br>
+&lt;script src="lifestream-chatbot.iife.js"&gt;&lt;/script&gt;<br>
+<br>
+&lt;!-- 3. Initialize the chatbot --&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;initLifestreamChatbot({<br>
+&nbsp;&nbsp;&nbsp;&nbsp;apiUrl: 'https://your-api.com/api/v1',<br>
+&nbsp;&nbsp;&nbsp;&nbsp;apiKey: 'your-api-key'<br>
+&nbsp;&nbsp;});<br>
+&lt;/script&gt;
+        </code>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Development</h2>
+      <p>This preview is running in development mode. To build for production:</p>
+      <div class="code-block">
+        <code>
+pnpm install<br>
+pnpm build
+        </code>
+      </div>
+      <p style="margin-top: 1rem;">
+        The build will generate optimized files in the <code>dist/</code> directory.
+      </p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/index.tsx"></script>
+  <script type="module">
+    // Development preview initialization
+    import { initLifestreamChatbot } from '/src/index.tsx';
+
+    // Initialize with default configuration
+    initLifestreamChatbot({
+      apiUrl: import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:3177/api/v1',
+      apiKey: import.meta.env.VITE_CHATBOT_API_KEY || 'dev-key',
+      theme: {
+        position: 'bottom-left'
+      },
+      welcomeMessage: "Hi! I'm the Lifestream Dynamics AI assistant. I can help you learn about our IT consultancy services. What would you like to know?",
+      title: 'AI Assistant',
+      subtitle: 'Online',
+      quickActions: [
+        { label: 'Our Services', message: 'What services do you offer?' },
+        { label: 'Technologies', message: 'What technologies do you work with?' },
+        { label: 'Get Started', message: 'How do I get started?' }
+      ]
+    });
+  </script>
+</body>
+</html>

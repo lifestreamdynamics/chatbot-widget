@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Basic Chatbot Integration Example</title>
+
+  <!-- Include the chatbot CSS -->
+  <link rel="stylesheet" href="../dist/lifestream-chatbot.css">
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f5f5f5;
+      padding: 2rem;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: #666;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Basic Chatbot Integration Example</h1>
+    <p>
+      This is a minimal example of integrating the Lifestream chatbot widget into your website.
+      The chatbot button should appear in the bottom-left corner of the page.
+    </p>
+    <p>
+      This example uses the default configuration with only the required parameters:
+      <code>apiUrl</code> and <code>apiKey</code>.
+    </p>
+  </div>
+
+  <!-- Include the chatbot script -->
+  <script src="../dist/lifestream-chatbot.iife.js"></script>
+
+  <!-- Initialize the chatbot -->
+  <script>
+    // Initialize with minimal configuration
+    initLifestreamChatbot({
+      apiUrl: 'http://localhost:3177/api/v1',
+      apiKey: 'your-api-key-here'
+    });
+  </script>
+</body>
+</html>

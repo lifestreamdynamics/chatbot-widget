@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Configuration Example</title>
+
+  <!-- Include the chatbot CSS -->
+  <link rel="stylesheet" href="../dist/lifestream-chatbot.css">
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 2rem;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border: 1px solid #334155;
+    }
+
+    h1 {
+      color: #38bdf8;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 1.125rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    h2 {
+      color: #38bdf8;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: #cbd5e1;
+      line-height: 1.6;
+      margin-bottom: 0.75rem;
+    }
+
+    ul {
+      color: #cbd5e1;
+      line-height: 1.8;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    code {
+      background: #0f172a;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      color: #38bdf8;
+      border: 1px solid #334155;
+    }
+
+    .control-panel {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+      color: #0f172a;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Advanced Configuration Example</h1>
+      <p class="subtitle">All features and configuration options</p>
+    </div>
+
+    <div class="card">
+      <h2>Features Demonstrated</h2>
+      <ul>
+        <li><strong>Auto-open on load</strong> - Chatbot opens automatically when page loads</li>
+        <li><strong>Session storage</strong> - Uses sessionStorage instead of localStorage</li>
+        <li><strong>Custom positioning</strong> - Top-right corner with custom offsets</li>
+        <li><strong>Custom dimensions</strong> - Larger chat window size</li>
+        <li><strong>Custom theme</strong> - Matches this page's dark blue color scheme</li>
+        <li><strong>Custom quick actions</strong> - Industry-specific quick replies</li>
+        <li><strong>Programmatic control</strong> - JavaScript API for advanced integration</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Control Panel</h2>
+      <p>Use these controls to interact with the chatbot programmatically:</p>
+      <div class="control-panel">
+        <button onclick="openChat()">Open Chat</button>
+        <button onclick="closeChat()">Close Chat</button>
+        <button onclick="sendTestMessage()">Send Test Message</button>
+        <button onclick="clearHistory()">Clear History</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Configuration</h2>
+      <p>This example uses the following configuration options:</p>
+      <ul>
+        <li><code>autoOpen: true</code> - Opens automatically on page load</li>
+        <li><code>sessionStorage: true</code> - Uses session storage for conversation persistence</li>
+        <li><code>maxWidth: '500px'</code> - Larger chat window</li>
+        <li><code>maxHeight: '700px'</code> - Taller chat window</li>
+        <li><code>position: 'top-right'</code> - Positioned in top-right corner</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Include the chatbot script -->
+  <script src="../dist/lifestream-chatbot.iife.js"></script>
+
+  <!-- Initialize with advanced configuration -->
+  <script>
+    // Store cleanup function for programmatic control
+    let chatbotCleanup;
+
+    // Initialize with all available options
+    chatbotCleanup = initLifestreamChatbot({
+      // Required configuration
+      apiUrl: 'http://localhost:3177/api/v1',
+      apiKey: 'your-api-key-here',
+
+      // Behavior options
+      autoOpen: true,
+      sessionStorage: true,
+
+      // Dimensions
+      maxWidth: '500px',
+      maxHeight: '700px',
+
+      // Theme configuration
+      theme: {
+        primaryColor: '#38bdf8',
+        secondaryColor: '#0ea5e9',
+        backgroundColor: '#0f172a',
+        surfaceColor: '#1e293b',
+        textColor: '#e2e8f0',
+        borderColor: '#334155',
+        position: 'top-right',
+        positionOffset: {
+          x: '2rem',
+          y: '2rem'
+        }
+      },
+
+      // Custom messaging
+      title: 'Advanced AI Assistant',
+      subtitle: 'Powered by Gemini',
+      welcomeMessage: 'Welcome to the advanced chatbot demo! This instance is configured with all available options including auto-open, session storage, custom theme, and positioned in the top-right corner.',
+
+      // Industry-specific quick actions
+      quickActions: [
+        { label: '🚀 Features', message: 'What are the key features of this chatbot?' },
+        { label: '⚙️ Configuration', message: 'How do I configure the chatbot?' },
+        { label: '📚 Documentation', message: 'Where can I find the documentation?' },
+        { label: '💬 API', message: 'Tell me about the JavaScript API' }
+      ]
+    });
+
+    // Programmatic control functions
+    function openChat() {
+      // Note: The widget doesn't expose open/close methods directly
+      // You would need to enhance the widget API for this
+      console.log('Open chat - requires widget API enhancement');
+      alert('This feature requires adding an API to the widget. See README for details.');
+    }
+
+    function closeChat() {
+      console.log('Close chat - requires widget API enhancement');
+      alert('This feature requires adding an API to the widget. See README for details.');
+    }
+
+    function sendTestMessage() {
+      console.log('Send message - requires widget API enhancement');
+      alert('This feature requires adding an API to the widget. See README for details.');
+    }
+
+    function clearHistory() {
+      // This function is available in the chatbot service
+      if (confirm('Clear conversation history?')) {
+        localStorage.removeItem('chatbot_session_id');
+        sessionStorage.removeItem('chatbot_session_id');
+        alert('History cleared! Refresh the page to start a new conversation.');
+      }
+    }
+
+    // Cleanup on page unload (optional)
+    window.addEventListener('beforeunload', () => {
+      if (chatbotCleanup) {
+        chatbotCleanup();
+      }
+    });
+  </script>
+</body>
+</html>
