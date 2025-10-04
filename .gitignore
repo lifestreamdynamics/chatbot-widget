@@ -27,6 +27,7 @@ dist-ssr/
 *~
 *.sublime-project
 *.sublime-workspace
+CLAUDE.md
 
 # OS
 .DS_Store
