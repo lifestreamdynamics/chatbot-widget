@@ -10,6 +10,11 @@ export function configure(apiUrl: string, apiKey: string, sessionStorage = false
   USE_SESSION_STORAGE = sessionStorage;
 }
 
+export interface SendMessageOptions {
+  metadata?: Record<string, any>;
+  onChunk?: (chunk: string) => void;
+}
+
 export function getSessionId(): string {
   if (typeof window === 'undefined') return '';
 
@@ -31,9 +36,14 @@ export function clearSession(): void {
   }
 }
 
-export async function sendMessage(message: string): Promise<ChatResponse> {
+export async function sendMessage(message: string, options?: SendMessageOptions): Promise<ChatResponse> {
   try {
     const sessionId = getSessionId();
+
+    // If streaming is requested via onChunk callback
+    if (options?.onChunk) {
+      return await sendStreamingMessage(message, sessionId, options);
+    }
 
     const response = await fetch(`${API_URL}/chat`, {
       method: 'POST',
@@ -44,6 +54,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
       body: JSON.stringify({
         message: message.trim(),
         session_id: sessionId,
+        metadata: options?.metadata,
       }),
     });
 
@@ -70,6 +81,104 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
 
   } catch (error) {
     console.error('[Chatbot] API Error:', error);
+    return {
+      success: false,
+      error: 'Network Error',
+      message: 'Unable to connect to the chatbot. Please check your connection and try again.',
+    };
+  }
+}
+
+async function sendStreamingMessage(
+  message: string,
+  sessionId: string,
+  options: SendMessageOptions
+): Promise<ChatResponse> {
+  try {
+    const response = await fetch(`${API_URL}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: message.trim(),
+        session_id: sessionId,
+        metadata: options.metadata,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || 'Request Failed',
+        message: errorData.message || 'Unable to send message. Please try again.',
+      };
+    }
+
+    // Process Server-Sent Events stream
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.chunk) {
+              fullResponse += parsed.chunk;
+              options.onChunk?.(parsed.chunk);
+            }
+            if (parsed.done) {
+              return {
+                success: true,
+                data: {
+                  response: fullResponse,
+                  session_id: sessionId,
+                  tokens_used: 0, // Not provided in streaming mode
+                },
+              };
+            }
+            if (parsed.error) {
+              return {
+                success: false,
+                error: 'Streaming Error',
+                message: parsed.error,
+              };
+            }
+          } catch (e) {
+            // Skip invalid JSON
+            continue;
+          }
+        }
+      }
+    }
+
+    // Stream completed without done signal
+    return {
+      success: true,
+      data: {
+        response: fullResponse,
+        session_id: sessionId,
+        tokens_used: 0,
+      },
+    };
+
+  } catch (error) {
+    console.error('[Chatbot] Streaming Error:', error);
     return {
       success: false,
       error: 'Network Error',

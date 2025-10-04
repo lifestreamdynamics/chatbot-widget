@@ -5,6 +5,38 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-10-04
+
+### Added
+- **Streaming Support**: Real-time SSE streaming responses via `/api/v1/chat/stream` endpoint
+- **Metadata Tracking**: Optional metadata field for analytics and monitoring
+- `enableStreaming` configuration option to enable real-time streaming mode
+- `metadata` configuration option to send custom data with each request
+- SSE (Server-Sent Events) parser for streaming responses
+- Real-time UI updates during streaming with placeholder messages
+
+### Changed
+- **API Compatibility**: Now compatible with chatbot-api v1.0.0+
+- Updated API request format to include optional `metadata` field
+- Enhanced `chatbotService.sendMessage()` to support streaming via `onChunk` callback
+- Improved ChatBot component to handle both streaming and non-streaming modes
+- Updated all documentation with correct API key format (`pk_` prefix for public keys)
+- Consolidated documentation into comprehensive README.md
+
+### Fixed
+- Corrected API key format in all examples (from `sk_` to `pk_` prefix)
+- Fixed health endpoint response format in documentation
+- Corrected bundle size information across all documentation
+- Removed duplicate content between README and USAGE docs
+
+### Documentation
+- Complete rewrite of README.md with step-by-step installation guide
+- Added streaming configuration examples
+- Updated API requirements with metadata support
+- Improved troubleshooting section with checkboxes
+- Added emojis for better visual scanning
+- Consolidated USAGE.md and DISTRIBUTION_GUIDE.md content into README
+
 ## [1.0.0] - 2025-01-15
 
 ### Added
@@ -63,7 +95,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Limitations
 - Widget does not expose programmatic API for open/close/send actions (enhancement planned)
 - No built-in analytics or event tracking (planned for future)
-- Streaming responses not implemented in UI (API supports it)
 - No message persistence across page reloads (only session ID persists)
 
 ### Security
@@ -78,7 +109,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Programmatic API for controlling widget state
 - Event callbacks (onOpen, onClose, onMessage, etc.)
 - Message persistence across page reloads
-- Streaming response UI with real-time typing
 - File upload support
 - Voice input option
 - Analytics integration (opt-in)
@@ -108,6 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **1.1.0** (2025-10-04) - Streaming support and metadata tracking
 - **1.0.0** (2025-01-15) - Initial release
 
 ## How to Update

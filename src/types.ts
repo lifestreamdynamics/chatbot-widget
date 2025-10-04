@@ -22,6 +22,8 @@ export interface ChatbotConfig {
   sessionStorage?: boolean;
   maxWidth?: string;
   maxHeight?: string;
+  enableStreaming?: boolean;
+  metadata?: Record<string, any>;
 }
 
 export interface Message {

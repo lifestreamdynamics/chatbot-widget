@@ -3,37 +3,86 @@ node_modules/
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+.pnpm-store/
 
 # Build outputs
 dist/
+dist-ssr/
 *.tsbuildinfo
+*.local
 
 # Environment files
 .env
 .env.local
+.env.*.local
 .env.production
+.env.development
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Testing
 coverage/
 .nyc_output/
+*.lcov
+.vitest/
 
 # Misc
 .cache/
 .temp/
+.tmp/
+*.tmp
+
+# Documentation archives (old versions)
+*.md.old
+
+# Build artifacts
+*.zip
+*.tar.gz
+*.tgz
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Vite
+.vite/

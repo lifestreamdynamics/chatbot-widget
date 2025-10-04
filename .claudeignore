@@ -1,0 +1,82 @@
+# .claudeignore
+# Patterns for files and directories that Claude Code should ignore
+
+# Dependencies - no need to read these
+node_modules/
+.pnpm-store/
+
+# Build outputs - generated files
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Large/binary files
+*.zip
+*.tar.gz
+*.tgz
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.pdf
+*.mp4
+*.mp3
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.otf
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# IDE settings
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Testing output
+coverage/
+.nyc_output/
+*.lcov
+
+# Cache directories
+.cache/
+.temp/
+.tmp/
+.vite/
+.npm/
+.eslintcache
+.stylelintcache
+
+# Archived documentation (old versions kept for reference)
+*.md.old
+
+# Lock files - no need to analyze
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Source maps (large and generated)
+*.map
+*.js.map
+*.css.map
+
+# Build artifacts
+*.tsbuildinfo

@@ -117,6 +117,8 @@
       <ul>
         <li><strong>Auto-open on load</strong> - Chatbot opens automatically when page loads</li>
         <li><strong>Session storage</strong> - Uses sessionStorage instead of localStorage</li>
+        <li><strong>Streaming mode</strong> - Real-time SSE streaming responses (NEW!)</li>
+        <li><strong>Metadata tracking</strong> - Sends custom metadata with each request (NEW!)</li>
         <li><strong>Custom positioning</strong> - Top-right corner with custom offsets</li>
         <li><strong>Custom dimensions</strong> - Larger chat window size</li>
         <li><strong>Custom theme</strong> - Matches this page's dark blue color scheme</li>
@@ -142,6 +144,8 @@
       <ul>
         <li><code>autoOpen: true</code> - Opens automatically on page load</li>
         <li><code>sessionStorage: true</code> - Uses session storage for conversation persistence</li>
+        <li><code>enableStreaming: true</code> - Enable real-time streaming responses (NEW!)</li>
+        <li><code>metadata: {...}</code> - Send custom metadata with each request (NEW!)</li>
         <li><code>maxWidth: '500px'</code> - Larger chat window</li>
         <li><code>maxHeight: '700px'</code> - Taller chat window</li>
         <li><code>position: 'top-right'</code> - Positioned in top-right corner</li>
@@ -161,15 +165,24 @@
     chatbotCleanup = initLifestreamChatbot({
       // Required configuration
       apiUrl: 'http://localhost:3177/api/v1',
-      apiKey: 'your-api-key-here',
+      apiKey: 'pk_your_public_key_here',
 
       // Behavior options
       autoOpen: true,
       sessionStorage: true,
+      enableStreaming: true, // NEW: Enable real-time streaming responses
 
       // Dimensions
       maxWidth: '500px',
       maxHeight: '700px',
+
+      // NEW: Custom metadata sent with each request
+      metadata: {
+        source: 'advanced-demo',
+        page: 'examples/advanced.html',
+        version: '1.0.0',
+        environment: 'development'
+      },
 
       // Theme configuration
       theme: {
@@ -188,8 +201,8 @@
 
       // Custom messaging
       title: 'Advanced AI Assistant',
-      subtitle: 'Powered by Gemini',
-      welcomeMessage: 'Welcome to the advanced chatbot demo! This instance is configured with all available options including auto-open, session storage, custom theme, and positioned in the top-right corner.',
+      subtitle: 'Streaming Enabled',
+      welcomeMessage: 'Welcome to the advanced chatbot demo! This instance features real-time streaming responses, metadata tracking, custom theme, session storage, and is positioned in the top-right corner. Try sending a message to see streaming in action!',
 
       // Industry-specific quick actions
       quickActions: [

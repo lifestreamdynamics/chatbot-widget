@@ -63,28 +63,71 @@ export default function ChatBot({ config }: ChatBotProps) {
     setIsTyping(true);
 
     try {
-      const response = await chatbotService.sendMessage(messageText);
+      // Streaming mode
+      if (config.enableStreaming) {
+        const assistantId = `assistant-${Date.now()}`;
+        let streamedContent = '';
 
-      if (response.success && response.data) {
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
+        // Add placeholder message for streaming
+        const placeholderMessage: Message = {
+          id: assistantId,
           role: 'assistant',
-          content: response.data.response,
+          content: '',
           timestamp: new Date(),
         };
+        setMessages(prev => [...prev, placeholderMessage]);
 
-        setMessages(prev => [...prev, assistantMessage]);
+        const response = await chatbotService.sendMessage(messageText, {
+          metadata: config.metadata,
+          onChunk: (chunk: string) => {
+            streamedContent += chunk;
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === assistantId
+                  ? { ...msg, content: streamedContent }
+                  : msg
+              )
+            );
+          },
+        });
+
+        if (!response.success) {
+          const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantId
+                ? { ...msg, role: 'system', content: errorContent }
+                : msg
+            )
+          );
+        }
       } else {
-        const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
+        // Normal mode (non-streaming)
+        const response = await chatbotService.sendMessage(messageText, {
+          metadata: config.metadata,
+        });
 
-        const errorMessage: Message = {
-          id: `error-${Date.now()}`,
-          role: 'system',
-          content: errorContent,
-          timestamp: new Date(),
-        };
+        if (response.success && response.data) {
+          const assistantMessage: Message = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: response.data.response,
+            timestamp: new Date(),
+          };
 
-        setMessages(prev => [...prev, errorMessage]);
+          setMessages(prev => [...prev, assistantMessage]);
+        } else {
+          const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
+
+          const errorMessage: Message = {
+            id: `error-${Date.now()}`,
+            role: 'system',
+            content: errorContent,
+            timestamp: new Date(),
+          };
+
+          setMessages(prev => [...prev, errorMessage]);
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
