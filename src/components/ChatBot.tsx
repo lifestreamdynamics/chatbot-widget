@@ -4,21 +4,29 @@ import { cn } from '../utils/cn';
 import * as chatbotService from '../services/chatbotService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message, ChatbotConfig } from '../types';
+import { Message, ChatbotConfig, ContentSafetyWarning } from '../types';
 
 interface ChatBotProps {
   config: ChatbotConfig;
 }
 
+interface MessageWithSafety extends Message {
+  contentSafety?: ContentSafetyWarning;
+}
+
 export default function ChatBot({ config }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(config.autoOpen || false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<MessageWithSafety[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyOffset, setHistoryOffset] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,21 +44,77 @@ export default function ChatBot({ config }: ChatBotProps) {
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const welcomeMessage: Message = {
+      const welcomeMessage: MessageWithSafety = {
         id: 'welcome',
         role: 'assistant',
         content: config.welcomeMessage || "Hi! I'm here to help you learn about Lifestream Dynamics IT consultancy services. I can answer questions about what we do, our areas of expertise, and how to get started. What would you like to know?",
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
+
+      // Load initial chat history if available (after a small delay to ensure welcome message is set)
+      setTimeout(() => {
+        loadChatHistory(welcomeMessage);
+      }, 0);
     }
   }, [isOpen, messages.length, config.welcomeMessage]);
+
+  const loadChatHistory = async (welcomeMsg?: MessageWithSafety, offset = 0) => {
+    setIsLoadingHistory(true);
+    try {
+      const historyResponse = await chatbotService.getChatHistory({
+        limit: 20,
+        offset,
+      });
+
+      if (historyResponse.success && historyResponse.data) {
+        const historyMessages: MessageWithSafety[] = (historyResponse.data.messages || [])
+          .filter((msg) => msg && msg.content) // Filter out any null/undefined messages
+          .map((msg) => ({
+            id: msg.id || `history-${Date.now()}-${Math.random()}`,
+            role: (msg.role as 'user' | 'assistant' | 'system'),
+            content: msg.content,
+            timestamp: new Date(msg.created_at),
+          }));
+
+        if (offset === 0) {
+          // Initial load - replace welcome message with history or keep welcome message
+          if (historyMessages.length > 0) {
+            setMessages(historyMessages);
+          } else if (welcomeMsg) {
+            // Keep the welcome message if no history
+            setMessages([welcomeMsg]);
+          }
+        } else {
+          // Pagination - prepend older messages
+          setMessages((prev) => [...historyMessages, ...prev]);
+        }
+
+        setHasMoreHistory(historyResponse.data.has_more || false);
+        setHistoryOffset(offset + (historyResponse.data.messages?.length || 0));
+      }
+    } catch (error) {
+      console.error('[Chatbot] Failed to load history:', error);
+      // On error, ensure we at least have the welcome message
+      if (offset === 0 && welcomeMsg) {
+        setMessages([welcomeMsg]);
+      }
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!isLoadingHistory && hasMoreHistory) {
+      loadChatHistory(undefined, historyOffset);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
     const messageText = input.trim();
-    const userMessage: Message = {
+    const userMessage: MessageWithSafety = {
       id: `user-${Date.now()}`,
       role: 'user',
       content: messageText,
@@ -69,7 +133,7 @@ export default function ChatBot({ config }: ChatBotProps) {
         let streamedContent = '';
 
         // Add placeholder message for streaming
-        const placeholderMessage: Message = {
+        const placeholderMessage: MessageWithSafety = {
           id: assistantId,
           role: 'assistant',
           content: '',
@@ -100,6 +164,15 @@ export default function ChatBot({ config }: ChatBotProps) {
                 : msg
             )
           );
+        } else if (response.data?.content_safety) {
+          // Update message with content safety info
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantId
+                ? { ...msg, contentSafety: response.data?.content_safety }
+                : msg
+            )
+          );
         }
       } else {
         // Normal mode (non-streaming)
@@ -108,18 +181,19 @@ export default function ChatBot({ config }: ChatBotProps) {
         });
 
         if (response.success && response.data) {
-          const assistantMessage: Message = {
+          const assistantMessage: MessageWithSafety = {
             id: `assistant-${Date.now()}`,
             role: 'assistant',
-            content: response.data.response,
+            content: response.data.response || response.data.message || '',
             timestamp: new Date(),
+            contentSafety: response.data.content_safety,
           };
 
           setMessages(prev => [...prev, assistantMessage]);
         } else {
           const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
 
-          const errorMessage: Message = {
+          const errorMessage: MessageWithSafety = {
             id: `error-${Date.now()}`,
             role: 'system',
             content: errorContent,
@@ -130,9 +204,9 @@ export default function ChatBot({ config }: ChatBotProps) {
         }
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('[Chatbot] Chat error:', error);
 
-      const errorMessage: Message = {
+      const errorMessage: MessageWithSafety = {
         id: `error-${Date.now()}`,
         role: 'system',
         content: 'Unable to connect to the chat service. Please check your internet connection and try again.',
@@ -159,30 +233,27 @@ export default function ChatBot({ config }: ChatBotProps) {
     { label: 'Get Started', message: 'How do I get started?' }
   ];
 
-  const getPositionClasses = () => {
-    const position = config.theme?.position || 'bottom-left';
+  const getPositionStyles = (): React.CSSProperties => {
+    const position = config.theme?.position || 'bottom-right';
     const offsetX = config.theme?.positionOffset?.x || '1.5rem';
     const offsetY = config.theme?.positionOffset?.y || '1.5rem';
 
-    const positions = {
-      'bottom-left': `bottom-[${offsetY}] left-[${offsetX}]`,
-      'bottom-right': `bottom-[${offsetY}] right-[${offsetX}]`,
-      'top-left': `top-[${offsetY}] left-[${offsetX}]`,
-      'top-right': `top-[${offsetY}] right-[${offsetX}]`,
+    const positions: Record<string, React.CSSProperties> = {
+      'bottom-left': { bottom: offsetY, left: offsetX },
+      'bottom-right': { bottom: offsetY, right: offsetX },
+      'top-left': { top: offsetY, left: offsetX },
+      'top-right': { top: offsetY, right: offsetX },
     };
 
-    return positions[position];
+    return positions[position] || positions['bottom-right'];
   };
 
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className={cn(
-          "chatbot-button",
-          "fixed z-[9999] group",
-          getPositionClasses()
-        )}
+        className="chatbot-button"
+        style={getPositionStyles()}
         aria-label="Open chat"
       >
         <div className="chatbot-button-ping" />
@@ -196,12 +267,9 @@ export default function ChatBot({ config }: ChatBotProps) {
 
   return (
     <div
-      className={cn(
-        "chatbot-container",
-        "fixed z-[9999]",
-        getPositionClasses()
-      )}
+      className="chatbot-container"
       style={{
+        ...getPositionStyles(),
         maxWidth: config.maxWidth || '450px',
         maxHeight: config.maxHeight || '650px',
       }}
@@ -233,8 +301,21 @@ export default function ChatBot({ config }: ChatBotProps) {
       </div>
 
       {/* Messages Area */}
-      <div className="chatbot-messages">
-        {messages.map((msg, index) => (
+      <div className="chatbot-messages" ref={messagesContainerRef}>
+        {/* Load More Button */}
+        {hasMoreHistory && (
+          <div className="chatbot-load-more-wrapper">
+            <button
+              onClick={handleLoadMore}
+              disabled={isLoadingHistory}
+              className="chatbot-load-more-btn"
+            >
+              {isLoadingHistory ? 'Loading...' : 'Load More Messages'}
+            </button>
+          </div>
+        )}
+
+        {messages.filter(msg => msg && msg.content).map((msg, index) => (
           <div
             key={msg.id}
             className={cn(
@@ -258,14 +339,27 @@ export default function ChatBot({ config }: ChatBotProps) {
                 msg.role === 'system' && "chatbot-content-system"
               )}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.content}
+                  {msg.content || ''}
                 </ReactMarkdown>
               </div>
+
+              {/* Content Safety Warnings */}
+              {msg.contentSafety && msg.contentSafety.warnings && msg.contentSafety.warnings.length > 0 && (
+                <div className="chatbot-safety-warning">
+                  <span className="chatbot-safety-icon">⚠️</span>
+                  <span className="chatbot-safety-text">
+                    {msg.contentSafety.redactions_applied
+                      ? 'Personal information detected and protected'
+                      : msg.contentSafety.warnings.join(', ')}
+                  </span>
+                </div>
+              )}
+
               <p className={cn(
                 "chatbot-message-time",
                 msg.role === 'user' ? "chatbot-time-user" : "chatbot-time-assistant"
               )}>
-                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {msg.timestamp?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit' }) || ''}
               </p>
             </div>
           </div>

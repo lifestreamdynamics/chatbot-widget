@@ -5,6 +5,27 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/@lifestream/chatbot-widget.svg)](https://www.npmjs.com/package/@lifestream/chatbot-widget)
 
+## 📖 Table of Contents
+
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Migration Guide](#-migration-guide) ⚠️ **New in v2.0.0**
+- [Configuration](#️-configuration)
+- [API Requirements](#-api-requirements)
+- [Content Safety & Warnings](#️-content-safety--warnings) 🆕
+- [Privacy & Compliance](#-privacy--compliance) 🆕
+- [Pagination](#-pagination) 🆕
+- [Developer Mode](#-developer-mode) 🆕
+- [Utility Functions](#-utility-functions) 🆕
+- [Development](#️-development)
+- [Browser Support](#-browser-support)
+- [Accessibility](#-accessibility)
+- [Security & Privacy](#-security--privacy)
+- [Troubleshooting](#-troubleshooting)
+- [Examples](#-examples)
+- [Changelog](#-changelog)
+
 ## ✨ Features
 
 - **🚀 Framework Agnostic** - Works with vanilla JavaScript, React, Vue, Angular, Svelte, or any framework
@@ -15,6 +36,10 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - **💾 Session Management** - Maintains conversation context with localStorage or sessionStorage
 - **🎯 Quick Actions** - Customizable quick reply buttons for common questions
 - **📊 Metadata Tracking** - Optional metadata for analytics and monitoring
+- **🔒 Privacy Controls** - GDPR/PIPEDA compliant with consent management and privacy mode
+- **🛡️ Content Safety** - Built-in PII detection warnings and content safety features
+- **📄 Pagination** - Load historical messages with "Load More Messages" feature
+- **🔍 Developer Mode** - Enhanced logging for debugging rate limits and token usage
 - **📦 TypeScript Support** - Full type definitions included
 - **⚙️ Small Bundle** - Optimized for fast loading (~205KB gzipped)
 
@@ -172,6 +197,58 @@ export class AppComponent implements OnInit, OnDestroy {
 <div>My App</div>
 ```
 
+## 🔄 Migration Guide
+
+### Upgrading to chatbot-api v1.0.0+
+
+If you're upgrading from an older version of the chatbot API, please note the following changes:
+
+#### Breaking Change: Response Field Name
+
+The API response field has been changed from `response` to `message` for consistency:
+
+**Before (chatbot-api < v1.0.0):**
+```json
+{
+  "success": true,
+  "data": {
+    "response": "Here's my answer...",
+    "session_id": "sess_123"
+  }
+}
+```
+
+**After (chatbot-api v1.0.0+):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Here's my answer...",
+    "session_id": "sess_123",
+    "model": "gemini-2.0-flash-exp",
+    "finish_reason": "STOP",
+    "tokens_used": 45
+  }
+}
+```
+
+**Backwards Compatibility:** The widget automatically handles both field names, so no changes are required in your widget configuration. However, we recommend updating your backend to chatbot-api v1.0.0+ to access new features.
+
+#### New Features in v1.0.0+
+
+- **Content Safety**: PII detection warnings and content safety metadata
+- **Privacy Controls**: GDPR/PIPEDA compliance with consent management
+- **Pagination**: Load historical messages with configurable page size
+- **Enhanced Metadata**: `model`, `finish_reason`, and improved token tracking
+- **Rate Limit Headers**: Detailed rate limit information in API responses
+- **Developer Mode**: Enhanced console logging for debugging
+
+#### Requirements
+
+- **Minimum Backend Version**: chatbot-api v1.0.0 or higher
+- **API Endpoint**: Ensure your backend supports the updated `/api/v1/chat` endpoint structure
+- **Privacy Mode**: If using privacy features, ensure your backend supports the privacy headers
+
 ## ⚙️ Configuration
 
 ### Required Options
@@ -196,6 +273,8 @@ export class AppComponent implements OnInit, OnDestroy {
 | `maxHeight` | `string` | `"650px"` | Maximum chat window height |
 | `enableStreaming` | `boolean` | `false` | Enable real-time SSE streaming responses |
 | `metadata` | `object` | `undefined` | Optional metadata sent with each request |
+| `privacy` | `object` | `{}` | Privacy and compliance configuration (see Privacy Options below) |
+| `enableDevMode` | `boolean` | `false` | Enable developer mode with enhanced console logging |
 
 ### Theme Options
 
@@ -221,6 +300,35 @@ theme: {
 - `top-left`
 - `top-right`
 
+### Privacy Options
+
+```typescript
+privacy: {
+  enablePrivacyMode: false,       // Use in-memory storage instead of localStorage
+  requireConsent: false,           // Require explicit user consent before chatting
+  consentMessage: 'Custom message', // Custom consent message (optional)
+  showDataRetentionInfo: true,    // Show data retention information
+  allowDataDeletion: true,         // Show "Clear History" option
+  complianceMode: 'gdpr'           // 'gdpr', 'pipeda', or undefined
+}
+```
+
+**Privacy Configuration Details:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enablePrivacyMode` | `boolean` | `false` | Use in-memory storage only (no localStorage/sessionStorage) |
+| `requireConsent` | `boolean` | `false` | Require explicit user consent before enabling chat |
+| `consentMessage` | `string` | Auto-generated | Custom consent message based on compliance mode |
+| `showDataRetentionInfo` | `boolean` | `true` | Display data retention information in consent dialog |
+| `allowDataDeletion` | `boolean` | `true` | Show "Clear History" option in chat menu |
+| `complianceMode` | `string` | `undefined` | Compliance framework: `'gdpr'`, `'pipeda'`, or `undefined` |
+
+**Compliance Modes:**
+- **GDPR** (EU): Emphasizes data minimization and user rights
+- **PIPEDA** (Canada): Focuses on consent and transparency
+- **None**: Standard privacy controls without specific compliance language
+
 ### Quick Actions
 
 ```javascript
@@ -243,10 +351,20 @@ initLifestreamChatbot({
   autoOpen: false,
   sessionStorage: false,
   enableStreaming: true,          // Enable real-time streaming
+  enableDevMode: true,             // Enable developer logging
 
   // Dimensions
   maxWidth: '500px',
   maxHeight: '700px',
+
+  // Privacy & Compliance
+  privacy: {
+    enablePrivacyMode: false,
+    requireConsent: true,
+    complianceMode: 'gdpr',
+    showDataRetentionInfo: true,
+    allowDataDeletion: true
+  },
 
   // Metadata for analytics
   metadata: {
@@ -310,17 +428,46 @@ Authorization: Bearer pk_your_public_key_here
 Content-Type: application/json
 ```
 
-**Response:**
+**Response (chatbot-api v1.0.0+):**
 ```json
 {
   "success": true,
   "data": {
-    "response": "We offer AI development, web development, and technical consulting services.",
+    "message": "We offer AI development, web development, and technical consulting services.",
     "session_id": "sess_1234567890_abc123",
-    "tokens_used": 45
+    "model": "gemini-2.0-flash-exp",
+    "finish_reason": "STOP",
+    "tokens_used": 45,
+    "content_safety": {
+      "has_pii": false,
+      "pii_types": []
+    }
   }
 }
 ```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message` | `string` | The AI-generated response message |
+| `session_id` | `string` | Unique session identifier for conversation context |
+| `model` | `string` | AI model used for generation (e.g., `gemini-2.0-flash-exp`) |
+| `finish_reason` | `string` | Completion reason: `STOP`, `MAX_TOKENS`, `SAFETY`, etc. |
+| `tokens_used` | `number` | Total tokens consumed in this request |
+| `content_safety` | `object` | Content safety metadata (optional) |
+
+**Rate Limit Headers:**
+
+The API may return rate limit information in response headers:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1642345678
+```
+
+These headers are automatically logged when `enableDevMode: true` is set.
 
 ### POST `/api/v1/chat/stream` (Optional - for streaming)
 
@@ -338,7 +485,19 @@ data: {"done":true}
 
 ### GET `/api/v1/chat/history/:sessionId`
 
-Retrieve conversation history for a session.
+Retrieve conversation history for a session with pagination support.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | `number` | `1` | Page number (1-indexed) |
+| `limit` | `number` | `50` | Messages per page (max 100) |
+
+**Example Request:**
+```
+GET /api/v1/chat/history/sess_1234567890_abc123?page=1&limit=20
+```
 
 **Response:**
 ```json
@@ -357,10 +516,21 @@ Retrieve conversation history for a session.
         "content": "Hi! How can I help you?",
         "created_at": "2025-01-15T10:30:02.000Z"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total_messages": 45,
+      "total_pages": 3,
+      "has_more": true
+    }
   }
 }
 ```
+
+**Pagination in Widget:**
+
+The widget automatically displays a "Load More Messages" button when there are older messages available. Users can click to load previous messages in batches.
 
 ### GET `/health`
 
@@ -375,6 +545,390 @@ Health check endpoint.
 ```
 
 > **Note:** The widget is compatible with the [chatbot-api](https://github.com/lifestream-dynamics/chatbot-api) v1.0.0+ backend.
+
+## 🛡️ Content Safety & Warnings
+
+The widget includes built-in content safety features that work with chatbot-api v1.0.0+ to detect and warn users about potentially sensitive content.
+
+### PII Detection
+
+When the API detects Personally Identifiable Information (PII) in user messages, a warning banner is displayed:
+
+**Detected PII Types:**
+- Email addresses
+- Phone numbers
+- Credit card numbers
+- Social Security Numbers (SSN)
+- IP addresses
+- Physical addresses
+- And more...
+
+**Warning Display:**
+
+When PII is detected, users see a warning message:
+
+```
+⚠️ Privacy Notice: Your message may contain sensitive information
+(Email Address, Phone Number). Avoid sharing personal data when possible.
+```
+
+**How It Works:**
+
+1. User sends a message containing PII
+2. API analyzes the message and returns `content_safety` metadata
+3. Widget displays a warning banner with detected PII types
+4. Message is still sent (user has full control)
+
+**Configuration:**
+
+Content safety is enabled by default and requires no configuration. It works automatically when using chatbot-api v1.0.0+.
+
+## 🔒 Privacy & Compliance
+
+The widget provides comprehensive privacy controls to help you comply with GDPR, PIPEDA, and other privacy regulations.
+
+### Privacy Modes
+
+#### Standard Mode (Default)
+- Session data stored in localStorage
+- Persistent across browser sessions
+- User can clear history manually
+
+#### Privacy Mode
+```javascript
+privacy: {
+  enablePrivacyMode: true
+}
+```
+- Session data stored in memory only
+- Cleared when widget is closed or page refreshes
+- No persistent storage used
+- Ideal for sensitive environments
+
+### Consent Management
+
+Require explicit user consent before enabling the chatbot:
+
+```javascript
+privacy: {
+  requireConsent: true,
+  complianceMode: 'gdpr',  // or 'pipeda'
+  consentMessage: 'We use this chatbot to assist you. Your conversation data will be processed according to our privacy policy.',
+  showDataRetentionInfo: true
+}
+```
+
+**Consent Dialog Features:**
+- Custom consent message based on compliance mode
+- Data retention information display
+- Accept/Decline buttons
+- Persistent consent state (stored separately from chat data)
+
+**GDPR Compliance (EU):**
+```javascript
+privacy: {
+  requireConsent: true,
+  complianceMode: 'gdpr',
+  allowDataDeletion: true
+}
+```
+
+Default consent message emphasizes:
+- Right to access data
+- Right to deletion
+- Data minimization
+- Lawful processing basis
+
+**PIPEDA Compliance (Canada):**
+```javascript
+privacy: {
+  requireConsent: true,
+  complianceMode: 'pipeda',
+  allowDataDeletion: true
+}
+```
+
+Default consent message emphasizes:
+- Meaningful consent
+- Transparency in data use
+- Accountability
+- Right to withdraw consent
+
+### Data Deletion
+
+Users can delete their conversation history at any time:
+
+**Via Chat Menu:**
+1. Click the menu icon (⋮) in the chat header
+2. Select "Clear History"
+3. Confirm deletion
+4. All messages and session data are removed
+
+**Programmatically:**
+```javascript
+import { clearHistory } from '@lifestream/chatbot-widget';
+
+// Clear history for current session
+clearHistory();
+```
+
+### Privacy Best Practices
+
+1. **Enable Privacy Mode for Sensitive Data:**
+   ```javascript
+   privacy: { enablePrivacyMode: true }
+   ```
+
+2. **Require Consent in Regulated Industries:**
+   ```javascript
+   privacy: { requireConsent: true, complianceMode: 'gdpr' }
+   ```
+
+3. **Allow Data Deletion:**
+   ```javascript
+   privacy: { allowDataDeletion: true }
+   ```
+
+4. **Combine with Backend Privacy Controls:**
+   - Implement data retention policies on the API
+   - Use privacy headers to signal privacy mode
+   - Respect user deletion requests
+
+## 📄 Pagination
+
+The widget supports paginated message loading for conversations with extensive history.
+
+### How It Works
+
+1. **Initial Load:** Widget loads the most recent messages (default: 50)
+2. **Load More:** Users click "Load More Messages" to fetch older messages
+3. **Batch Loading:** Messages are loaded in configurable batches (default: 20)
+4. **Seamless UX:** New messages appear smoothly at the top of the conversation
+
+### Configuration
+
+Pagination is automatic and requires no configuration. The widget uses these defaults:
+
+- **Initial page size:** 50 messages
+- **Load more batch size:** 20 messages
+- **Maximum per page:** 100 messages (API limit)
+
+### User Experience
+
+**When there are more messages:**
+```
+[Load More Messages ↑]
+─────────────────────
+User: Hello
+Bot: Hi there!
+...
+```
+
+**When all messages are loaded:**
+```
+─────────────────────
+User: Hello
+Bot: Hi there!
+...
+```
+
+### Backend Requirements
+
+Your API must support pagination parameters on the history endpoint:
+
+```
+GET /api/v1/chat/history/:sessionId?page=1&limit=20
+```
+
+Response must include `pagination` metadata:
+```json
+{
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total_messages": 45,
+    "total_pages": 3,
+    "has_more": true
+  }
+}
+```
+
+## 🔍 Developer Mode
+
+Enable enhanced console logging for debugging and monitoring.
+
+### Enabling Developer Mode
+
+```javascript
+initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  enableDevMode: true  // Enable developer logging
+});
+```
+
+### What Gets Logged
+
+**Rate Limit Information:**
+```
+[Chatbot Widget] Rate Limit Status:
+  • Limit: 100 requests
+  • Remaining: 95 requests
+  • Reset: 2025-01-15T11:00:00.000Z
+```
+
+**Token Usage:**
+```
+[Chatbot Widget] Tokens used: 45
+```
+
+**API Requests:**
+```
+[Chatbot Widget] Sending message to API...
+[Chatbot Widget] API Response received
+```
+
+**Content Safety Warnings:**
+```
+[Chatbot Widget] PII detected: Email Address, Phone Number
+```
+
+**Session Information:**
+```
+[Chatbot Widget] Session ID: sess_1234567890_abc123
+[Chatbot Widget] Privacy mode: enabled
+```
+
+**Errors and Debugging:**
+```
+[Chatbot Widget] Error: Network timeout after 30s
+```
+
+### Use Cases
+
+- **Development:** Debug API integration issues
+- **Monitoring:** Track rate limit usage and token consumption
+- **Troubleshooting:** Identify content safety triggers
+- **Performance:** Monitor API response times
+
+**Important:** Disable developer mode in production to avoid console clutter and potential information disclosure.
+
+## 🔧 Utility Functions
+
+The widget exports utility functions for programmatic control over privacy and consent.
+
+### Consent Management
+
+#### grantConsent()
+
+Grant user consent programmatically:
+
+```javascript
+import { grantConsent } from '@lifestream/chatbot-widget';
+
+// Grant consent (e.g., after user accepts in a custom dialog)
+grantConsent();
+```
+
+**When to use:**
+- Custom consent dialogs outside the widget
+- Pre-authorized users (e.g., authenticated sessions)
+- Consent granted through other mechanisms
+
+#### revokeConsent()
+
+Revoke user consent and disable the chatbot:
+
+```javascript
+import { revokeConsent } from '@lifestream/chatbot-widget';
+
+// Revoke consent (e.g., user opts out)
+revokeConsent();
+```
+
+**Effects:**
+- Chat becomes disabled
+- Consent dialog reappears if user tries to chat
+- Existing messages remain unless cleared separately
+
+### Data Management
+
+#### clearHistory()
+
+Clear all conversation history and session data:
+
+```javascript
+import { clearHistory } from '@lifestream/chatbot-widget';
+
+// Clear all messages and session data
+clearHistory();
+
+// Example: Clear history on user logout
+function handleLogout() {
+  clearHistory();
+  // ... other logout logic
+}
+```
+
+**Effects:**
+- Removes all messages from UI
+- Clears session ID from storage
+- Resets conversation state
+- Does not revoke consent
+
+### Complete Example
+
+```javascript
+import initLifestreamChatbot, {
+  grantConsent,
+  revokeConsent,
+  clearHistory
+} from '@lifestream/chatbot-widget';
+import '@lifestream/chatbot-widget/style.css';
+
+// Initialize widget
+const cleanup = initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  privacy: {
+    requireConsent: true,
+    complianceMode: 'gdpr'
+  }
+});
+
+// Custom consent handling
+function handleUserAcceptsTerms() {
+  grantConsent();
+  console.log('User accepted chatbot terms');
+}
+
+function handleUserDeclinesTerms() {
+  revokeConsent();
+  console.log('User declined chatbot terms');
+}
+
+// Custom data deletion
+function handleClearUserData() {
+  clearHistory();
+  console.log('User data cleared');
+}
+
+// Cleanup on app unmount
+function handleAppUnmount() {
+  clearHistory();
+  cleanup();
+}
+```
+
+### TypeScript Support
+
+All utility functions are fully typed:
+
+```typescript
+export function grantConsent(): void;
+export function revokeConsent(): void;
+export function clearHistory(): void;
+```
 
 ## 🛠️ Development
 
@@ -454,13 +1008,34 @@ chatbot-widget/
 - Focus management
 - High contrast mode support
 
-## 🔒 Security
+## 🔒 Security & Privacy
+
+### Security Features
 
 - XSS protection via React's built-in escaping
 - Safe markdown rendering with react-markdown
 - No inline scripts in generated HTML
 - HTTPS recommended for production
 - Use public API keys only (implement rate limiting on backend)
+
+### Privacy Features
+
+- **PII Detection:** Automatic warnings for sensitive information
+- **Privacy Mode:** In-memory storage option (no localStorage)
+- **Consent Management:** GDPR/PIPEDA compliant consent dialogs
+- **Data Deletion:** User-initiated history clearing
+- **Compliance Modes:** Built-in support for GDPR and PIPEDA regulations
+- **Secure Storage:** Session data encrypted in transit (HTTPS required)
+
+### Best Practices
+
+1. **Always use HTTPS in production** to protect data in transit
+2. **Enable privacy mode** for sensitive environments (healthcare, finance)
+3. **Require consent** in regulated jurisdictions (EU, Canada)
+4. **Implement rate limiting** on your backend API
+5. **Monitor PII detection** using developer mode during testing
+6. **Regular security audits** of your backend API
+7. **Data retention policies** aligned with your compliance requirements
 
 ## 🐛 Troubleshooting
 
@@ -503,6 +1078,35 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 - Verify browser privacy settings allow storage
 - Try using `sessionStorage: true` option if localStorage is blocked
 - Check for browser extensions blocking storage
+- If using `privacy.enablePrivacyMode: true`, sessions are intentionally in-memory only
+
+### PII Warnings Not Showing
+
+- Verify backend is running chatbot-api v1.0.0+
+- Check API response includes `content_safety` metadata
+- Enable developer mode to see PII detection logs
+- Ensure backend has PII detection enabled
+
+### Consent Dialog Not Appearing
+
+- Verify `privacy.requireConsent: true` is set
+- Check browser console for errors
+- Clear browser storage and reload page
+- Ensure previous consent state isn't cached
+
+### Pagination Not Working
+
+- Verify backend supports pagination parameters (`page`, `limit`)
+- Check API response includes `pagination` metadata
+- Enable developer mode to see pagination logs
+- Ensure backend returns `has_more` flag correctly
+
+### Developer Mode Not Logging
+
+- Verify `enableDevMode: true` is set in configuration
+- Check browser console is open
+- Ensure console logging isn't filtered or disabled
+- Look for `[Chatbot Widget]` prefix in logs
 
 ## 📚 Examples
 
@@ -561,7 +1165,31 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## 🔄 Changelog
 
-See [CHANGELOG.md](./CHANGELOG.md) for version history and updates.
+### Version 2.0.0 (Latest)
+
+**Breaking Changes:**
+- API response field changed from `response` to `message` (backwards compatible in widget)
+- Requires chatbot-api v1.0.0 or higher
+
+**New Features:**
+- Content safety with PII detection warnings
+- Privacy controls for GDPR/PIPEDA compliance
+- Consent management with customizable dialogs
+- Privacy mode (in-memory storage only)
+- Pagination for message history with "Load More" feature
+- Developer mode with enhanced logging
+- Utility functions: `grantConsent()`, `revokeConsent()`, `clearHistory()`
+- Rate limit information logging
+- Enhanced token usage tracking
+- Data deletion support
+
+**Improvements:**
+- Better error handling and user feedback
+- Improved accessibility for consent dialogs
+- Enhanced TypeScript types for new features
+- Updated API response handling
+
+See [CHANGELOG.md](./CHANGELOG.md) for complete version history and updates.
 
 ## 🤝 Contributing
 

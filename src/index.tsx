@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import ChatbotWidget from './ChatbotWidget';
 import { ChatbotConfig } from './types';
-import { configure } from './services/chatbotService';
+import { configure, grantConsent as grantConsentService, revokeConsent as revokeConsentService, clearSession as clearSessionService } from './services/chatbotService';
 import './styles.css';
 
 let rootInstance: ReturnType<typeof createRoot> | null = null;
@@ -14,8 +14,14 @@ export function initLifestreamChatbot(config: ChatbotConfig): () => void {
     return () => {};
   }
 
-  // Configure the chatbot service
-  configure(config.apiUrl, config.apiKey, config.sessionStorage);
+  // Configure the chatbot service with privacy settings
+  configure(
+    config.apiUrl,
+    config.apiKey,
+    config.sessionStorage,
+    config.enableDevMode,
+    config.privacy
+  );
 
   // Create or get mount point
   containerElement = document.getElementById('lifestream-chatbot-root') as HTMLDivElement;
@@ -57,9 +63,28 @@ export function initLifestreamChatbot(config: ChatbotConfig): () => void {
   };
 }
 
+// Privacy & Consent Management
+export function grantConsent(): void {
+  grantConsentService();
+}
+
+export function revokeConsent(): void {
+  revokeConsentService();
+}
+
+export function clearHistory(): void {
+  clearSessionService();
+}
+
 // UMD/IIFE global export
 if (typeof window !== 'undefined') {
   (window as any).initLifestreamChatbot = initLifestreamChatbot;
+  (window as any).LifestreamChatbot = {
+    init: initLifestreamChatbot,
+    grantConsent,
+    revokeConsent,
+    clearHistory,
+  };
 }
 
 export type { ChatbotConfig } from './types';

@@ -5,6 +5,69 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-10-19
+
+### Fixed
+- **Critical Bug:** Widget crash when accessing undefined message properties (ChatBot.tsx:316)
+  - Added defensive null checks throughout message handling
+  - Filter out null/undefined messages before rendering
+  - Handle empty chat history gracefully
+- **Critical Bug:** CSS positioning utilities missing from compiled output
+  - Added `position: fixed` and `z-index: 9999` to button and container classes
+  - Replaced Tailwind-style positioning with inline style objects
+  - All four position options now work correctly (bottom-left, bottom-right, top-left, top-right)
+- **Critical Bug:** `process.env.NODE_ENV` undefined in browser environments
+  - Added Vite `define` configuration to replace env vars at build time
+  - No runtime errors from environment variable access
+
+### Improved
+- **Bundle Size Optimization:** Significantly reduced bundle sizes
+  - IIFE: 687 kB → 361 kB (47% smaller, 205 kB → 109 kB gzipped)
+  - UMD: 688 kB → 361 kB (47% smaller, 205 kB → 109 kB gzipped)
+  - ES Module: 1,999 kB → 961 kB (52% smaller, 360 kB → 179 kB gzipped)
+- **Code Quality:** Enhanced defensive programming with null checks
+- **Positioning System:** More reliable CSS-based positioning with inline styles
+
+## [2.0.0] - 2025-10-18
+
+### Breaking Changes
+- **API Response Field:** Backend API now returns `message` field instead of `response` (widget handles backwards compatibility internally)
+- **Minimum API Version:** Requires chatbot-api v1.0.0 or higher
+
+### Added
+- **Content Safety Warnings:** Inline PII detection warnings with visual indicators
+- **Pagination Support:** "Load More Messages" button for conversation history with 20 messages per page
+- **Privacy Controls:** GDPR/PIPEDA compliance with consent management
+  - `grantConsent()` - Enable persistent storage after user consent
+  - `revokeConsent()` - Revoke consent and delete all data
+  - `clearHistory()` - Clear conversation history
+- **In-Memory Storage:** Privacy mode using in-memory storage when consent not granted
+- **Developer Mode:** Console logging for debugging (rate limits, tokens, performance, content safety)
+- **Rate Limit Tracking:** Extract and log rate limit information from API headers (dev mode only)
+- **Enhanced Error Handling:** Better error messages with retry information for rate limits
+- **Message Validation:** Client-side validation (max 10,000 characters)
+- **Session ID Validation:** Enforce `sess_[alphanumeric]` pattern
+- **TypeScript Declarations:** Full TypeScript type definitions included
+- **Implementation Guide:** Comprehensive 850+ line implementation guide with examples
+
+### Improved
+- **Privacy Configuration:** New `privacy` config object with multiple options
+  - `enableSessionStorage`: Control localStorage/sessionStorage usage
+  - `disableAnalytics`: Disable analytics tracking
+  - `dataRetentionDays`: Document data retention policy
+  - `consentRequired`: Require explicit consent before storage
+- **Developer Experience:** New `enableDevMode` flag for debug logging
+- **Response Compatibility:** Automatic mapping between API's `message` and widget's `response` fields
+- **Streaming Support:** Enhanced with content safety and model information
+- **Error Messages:** More user-friendly error messages with actionable information
+- **Documentation:** Expanded README from 573 to 1200+ lines with migration guide
+- **API Integration:** Support for new v1.0.0 response fields (`model`, `finish_reason`, `content_safety`)
+
+### Fixed
+- TypeScript compilation now generates declaration files correctly
+- Build process optimized with separate tsconfig for declarations
+- Session ID now validated against required pattern before API calls
+
 ## [1.1.0] - 2025-10-04
 
 ### Added
@@ -138,6 +201,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **2.0.1** (2025-10-19) - Critical bug fixes and bundle optimization
+- **2.0.0** (2025-10-18) - Major release with privacy controls, content safety, and pagination
 - **1.1.0** (2025-10-04) - Streaming support and metadata tracking
 - **1.0.0** (2025-01-15) - Initial release
 
