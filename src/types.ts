@@ -92,3 +92,38 @@ export interface ChatHistoryResponse {
   };
   error?: string;
 }
+
+// Programmatic API Handle
+export interface ChatBotHandle {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  sendMessage: (text: string) => Promise<void>;
+  getSessionId: () => string | null;
+  isOpen: () => boolean;
+}
+
+// Event System Types
+export type ChatbotEventName = 'open' | 'close' | 'message' | 'error';
+
+export interface ChatbotMessageEvent {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+export interface ChatbotErrorEvent {
+  type: 'api' | 'network' | 'validation';
+  message: string;
+  details?: unknown;
+}
+
+export type ChatbotEventCallback<T = void> = (data: T) => void;
+
+export interface ChatbotEventEmitter {
+  on(event: 'open', callback: ChatbotEventCallback): void;
+  on(event: 'close', callback: ChatbotEventCallback): void;
+  on(event: 'message', callback: ChatbotEventCallback<ChatbotMessageEvent>): void;
+  on(event: 'error', callback: ChatbotEventCallback<ChatbotErrorEvent>): void;
+  off(event: ChatbotEventName, callback: ChatbotEventCallback<unknown>): void;
+}

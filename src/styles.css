@@ -567,3 +567,33 @@
 .chatbot-safety-text {
   line-height: 1.3;
 }
+
+/* Focus-visible styles for keyboard navigation (WCAG 2.1 AA) */
+.chatbot-button:focus-visible,
+.chatbot-minimize-btn:focus-visible,
+.chatbot-send-btn:focus-visible,
+.chatbot-quick-action-btn:focus-visible,
+.chatbot-load-more-btn:focus-visible {
+  outline: 2px solid var(--chatbot-primary);
+  outline-offset: 2px;
+}
+
+.chatbot-input:focus-visible {
+  outline: none;
+  border-color: var(--chatbot-primary);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.3);
+}
+
+/* Ensure focus is visible on all interactive elements */
+.chatbot-container *:focus-visible {
+  outline: 2px solid var(--chatbot-primary);
+  outline-offset: 2px;
+}
+
+/* Print styles - hide widget when printing */
+@media print {
+  .chatbot-button,
+  .chatbot-container {
+    display: none !important;
+  }
+}

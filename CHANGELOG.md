@@ -5,6 +5,38 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-21
+
+### Added
+- **Programmatic API:** Full widget control from application code
+  - `open()` - Open the chat window
+  - `close()` - Close/minimize the chat window
+  - `toggle()` - Toggle open/closed state
+  - `sendMessage(text)` - Send a message programmatically
+  - `getSessionId()` - Get current session ID
+  - `isOpen()` - Check if widget is open
+- **Event System:** Subscribe to widget lifecycle events
+  - `on(event, callback)` - Subscribe to events
+  - `off(event, callback)` - Unsubscribe from events
+  - Events: `open`, `close`, `message`, `error`
+- **Full Accessibility (WCAG 2.1 AA):**
+  - ARIA live regions for screen reader announcements
+  - Keyboard navigation (Escape to close, Tab focus trap)
+  - Focus management (save/restore focus on open/close)
+  - Semantic heading structure (`<h2>` for title)
+  - `aria-expanded`, `aria-controls`, `role="dialog"`, `aria-modal`
+  - Focus-visible styles for keyboard users
+- **E2E Testing Support:** Stable `data-testid` attributes on all interactive elements
+  - `chatbot-button`, `chatbot-container`, `chatbot-minimize`
+  - `chatbot-messages`, `chatbot-input`, `chatbot-send`
+  - `chatbot-quick-action-{index}` for quick action buttons
+- **Test Coverage:** Comprehensive test suite (70 test cases across 3 test files)
+- **Print Styles:** Widget hidden when printing (`@media print`)
+
+### Improved
+- **Documentation:** Added Programmatic API, Event System, and Testing sections to README
+- **Developer Experience:** Better test automation support with stable selectors
+
 ## [2.0.1] - 2025-10-19
 
 ### Fixed
@@ -169,23 +201,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned Features
-- Programmatic API for controlling widget state
-- Event callbacks (onOpen, onClose, onMessage, etc.)
 - Message persistence across page reloads
 - File upload support
 - Voice input option
 - Analytics integration (opt-in)
-- Accessibility improvements (ARIA enhancements)
 - Internationalization (i18n) support
 - Custom CSS class injection
-- Widget state persistence
 - Message read receipts
 - Rich media support (images, videos, buttons)
 - Conversation export functionality
 - Dark/light mode toggle
 
 ### Future Enhancements
-- Reduce bundle size (<150KB gzipped target)
+- Further reduce bundle size (<100KB gzipped target) - currently ~111KB
 - Lazy load markdown renderer
 - Virtual scrolling for long conversations
 - Offline mode with queue
@@ -201,6 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **2.1.0** (2025-12-21) - Programmatic API, event system, full accessibility (WCAG 2.1 AA)
 - **2.0.1** (2025-10-19) - Critical bug fixes and bundle optimization
 - **2.0.0** (2025-10-18) - Major release with privacy controls, content safety, and pagination
 - **1.1.0** (2025-10-04) - Streaming support and metadata tracking

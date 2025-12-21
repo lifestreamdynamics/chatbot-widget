@@ -266,9 +266,13 @@ async function sendStreamingMessage(
       throw new Error('No response body');
     }
 
-    while (true) {
+    let streamComplete = false;
+    while (!streamComplete) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        streamComplete = true;
+        continue;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
@@ -315,7 +319,7 @@ async function sendStreamingMessage(
                 rateLimitInfo,
               };
             }
-          } catch (e) {
+          } catch {
             // Skip invalid JSON
             continue;
           }

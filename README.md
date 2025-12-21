@@ -13,11 +13,14 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - [Migration Guide](#-migration-guide) ⚠️ **New in v2.0.0**
 - [Configuration](#️-configuration)
 - [API Requirements](#-api-requirements)
-- [Content Safety & Warnings](#️-content-safety--warnings) 🆕
-- [Privacy & Compliance](#-privacy--compliance) 🆕
-- [Pagination](#-pagination) 🆕
-- [Developer Mode](#-developer-mode) 🆕
-- [Utility Functions](#-utility-functions) 🆕
+- [Content Safety & Warnings](#️-content-safety--warnings)
+- [Privacy & Compliance](#-privacy--compliance)
+- [Pagination](#-pagination)
+- [Developer Mode](#-developer-mode)
+- [Utility Functions](#-utility-functions)
+- [Programmatic API](#-programmatic-api) 🆕 **New in v2.1.0**
+- [Event System](#-event-system) 🆕 **New in v2.1.0**
+- [Testing](#-testing) 🆕 **New in v2.1.0**
 - [Development](#️-development)
 - [Browser Support](#-browser-support)
 - [Accessibility](#-accessibility)
@@ -40,8 +43,12 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - **🛡️ Content Safety** - Built-in PII detection warnings and content safety features
 - **📄 Pagination** - Load historical messages with "Load More Messages" feature
 - **🔍 Developer Mode** - Enhanced logging for debugging rate limits and token usage
+- **🎮 Programmatic API** - Control widget state with open(), close(), sendMessage(), and more
+- **📡 Event System** - Subscribe to widget events (open, close, message, error)
+- **♿ Full Accessibility** - WCAG 2.1 AA compliant with keyboard navigation and screen reader support
+- **🧪 E2E Testing Ready** - Stable data-testid attributes for reliable test automation
 - **📦 TypeScript Support** - Full type definitions included
-- **⚙️ Small Bundle** - Optimized for fast loading (~205KB gzipped)
+- **⚙️ Small Bundle** - Optimized for fast loading (~111KB gzipped)
 
 ## 📦 Installation
 
@@ -930,6 +937,146 @@ export function revokeConsent(): void;
 export function clearHistory(): void;
 ```
 
+## 🎮 Programmatic API
+
+The widget exposes a programmatic API for controlling the chatbot from your application code.
+
+### Widget Control
+
+```javascript
+import { open, close, toggle, sendMessage, getSessionId, isOpen } from '@lifestream/chatbot-widget';
+
+// Open the chat window
+open();
+
+// Close the chat window
+close();
+
+// Toggle open/closed state
+toggle();
+
+// Send a message programmatically
+await sendMessage('Hello from my app!');
+
+// Get the current session ID
+const sessionId = getSessionId(); // 'sess_abc123' or null
+
+// Check if widget is open
+if (isOpen()) {
+  console.log('Chat is open');
+}
+```
+
+### Global Access (IIFE/UMD)
+
+When using the script tag version, methods are available on `window.LifestreamChatbot`:
+
+```html
+<script src="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
+<script>
+  // Initialize
+  LifestreamChatbot.init({
+    apiUrl: 'https://api.example.com/api/v1',
+    apiKey: 'pk_your_key'
+  });
+
+  // Control the widget
+  document.getElementById('open-chat').addEventListener('click', () => {
+    LifestreamChatbot.open();
+  });
+
+  document.getElementById('send-greeting').addEventListener('click', () => {
+    LifestreamChatbot.sendMessage('Hi, I need help!');
+  });
+</script>
+```
+
+## 📡 Event System
+
+Subscribe to widget events for deeper integration with your application.
+
+### Available Events
+
+| Event | Data | Description |
+|-------|------|-------------|
+| `open` | - | Widget opened |
+| `close` | - | Widget closed/minimized |
+| `message` | `{ role, content, timestamp }` | Message sent or received |
+| `error` | `{ type, message, details }` | Error occurred |
+
+### Usage
+
+```javascript
+import { on, off } from '@lifestream/chatbot-widget';
+
+// Subscribe to events
+on('open', () => {
+  console.log('Chat opened');
+});
+
+on('close', () => {
+  console.log('Chat closed');
+});
+
+on('message', (event) => {
+  console.log(`${event.role}: ${event.content}`);
+  // event.role: 'user' | 'assistant'
+  // event.content: string
+  // event.timestamp: Date
+});
+
+on('error', (event) => {
+  console.error(`Error (${event.type}): ${event.message}`);
+  // event.type: 'api' | 'network' | 'validation'
+  // event.message: string
+  // event.details: unknown
+});
+
+// Unsubscribe
+const handler = (event) => console.log(event);
+on('message', handler);
+off('message', handler);
+```
+
+### Global Access (IIFE/UMD)
+
+```html
+<script>
+  LifestreamChatbot.on('message', (event) => {
+    if (event.role === 'user') {
+      analytics.track('chat_message_sent', { content: event.content });
+    }
+  });
+
+  LifestreamChatbot.on('error', (event) => {
+    errorTracker.capture(event);
+  });
+</script>
+```
+
+## 🧪 Testing
+
+The widget includes `data-testid` attributes for reliable E2E testing:
+
+| Selector | Element |
+|----------|---------|
+| `data-testid="chatbot-button"` | Floating trigger button |
+| `data-testid="chatbot-container"` | Chat window container |
+| `data-testid="chatbot-minimize"` | Minimize/close button |
+| `data-testid="chatbot-messages"` | Messages container |
+| `data-testid="chatbot-input"` | Message input field |
+| `data-testid="chatbot-send"` | Send button |
+| `data-testid="chatbot-quick-action-0"` | First quick action (0-indexed) |
+
+### Playwright Example
+
+```javascript
+await page.getByTestId('chatbot-button').click();
+await page.getByTestId('chatbot-input').fill('Hello');
+await page.getByTestId('chatbot-send').click();
+await expect(page.getByTestId('chatbot-messages')).toContainText('Hello');
+```
+
 ## 🛠️ Development
 
 ### Prerequisites
@@ -987,10 +1134,10 @@ chatbot-widget/
 
 | File | Uncompressed | Gzipped |
 |------|-------------|---------|
-| `lifestream-chatbot.css` | 8 KB | 2 KB |
-| `lifestream-chatbot.iife.js` | 666 KB | 203 KB |
-| `lifestream-chatbot.es.js` | 1.9 MB | 357 KB |
-| **Total (IIFE + CSS)** | **674 KB** | **~205 KB** |
+| `lifestream-chatbot.css` | 9 KB | 2 KB |
+| `lifestream-chatbot.iife.js` | 361 KB | 109 KB |
+| `lifestream-chatbot.es.js` | 961 KB | 179 KB |
+| **Total (IIFE + CSS)** | **370 KB** | **~111 KB** |
 
 ## 🌐 Browser Support
 

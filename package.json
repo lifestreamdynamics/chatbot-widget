@@ -1,6 +1,6 @@
 {
   "name": "@lifestreamdynamics/chatbot-widget",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Framework-agnostic AI chatbot widget with privacy controls, content safety, and pagination - embeddable on any website with a single script tag",
   "type": "module",
   "main": "./dist/lifestream-chatbot.umd.js",
@@ -24,6 +24,13 @@
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/ --ext .ts,.tsx",
+    "lint:fix": "eslint src/ tests/ --ext .ts,.tsx --fix",
+    "format": "prettier --write 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}'",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}'",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -54,18 +61,31 @@
   "author": "Lifestream Dynamics <eric@mittonvillage.com>",
   "license": "MIT",
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.4.2",
     "terser": "^5.36.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

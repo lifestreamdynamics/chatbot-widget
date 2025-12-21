@@ -4,157 +4,101 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Framework-agnostic AI chatbot widget built with React 19 and Vite. Embeddable on any website via script tag. Supports IIFE, UMD, and ES module formats. **100% compatible with chatbot-api v1.0.0** (released 2025-10-18) with enhanced features: content safety warnings, pagination, privacy controls, and developer mode logging.
-
-**Backend Compatibility:** As of 2025-10-18, the chatbot-api backend implements ALL v1.0.0 features documented in this widget. All features are now fully functional.
+Framework-agnostic AI chatbot widget built with React 19 and Vite. Embeddable on any website via script tag. Supports IIFE, UMD, and ES module formats. Compatible with chatbot-api v1.0.0+.
 
 ## Development Commands
 
 ```bash
-# Start development server (http://localhost:5173)
-npm run dev
+npm run dev              # Start dev server (http://localhost:5173)
+npm run build            # Build for production (outputs to dist/)
+npm run typecheck        # Type checking only
+npm test                 # Run tests once
+npm run test:watch       # Run tests in watch mode
+npm run test:coverage    # Run tests with coverage report
+npm run lint             # Run ESLint
+npm run lint:fix         # Fix ESLint issues
+npm run format           # Format with Prettier
+npm run format:check     # Check formatting (used in CI)
+npm run preview          # Preview production build
+```
 
-# Build for production (outputs to dist/)
-npm run build
-
-# Type checking only (no build)
-npm run typecheck
-
-# Preview production build
-npm run preview
+Run a single test file:
+```bash
+npx vitest run tests/chatbotService.test.ts
+npx vitest tests/components/ChatBot.test.tsx --watch  # Watch mode for single file
 ```
 
 ## Architecture
 
 ### Entry Point Flow
-1. `src/index.tsx` - Exports `initLifestreamChatbot()` function and handles global window attachment
-2. `src/ChatbotWidget.tsx` - Wraps ChatBot component in StrictMode
-3. `src/components/ChatBot.tsx` - Main UI component (not included in analysis but referenced)
+1. `src/index.tsx` - Main entry: exports `initLifestreamChatbot()`, attaches to `window.LifestreamChatbot`, manages React root mounting
+2. `src/ChatbotWidget.tsx` - Wraps ChatBot in StrictMode, forwards ref for programmatic API
+3. `src/components/ChatBot.tsx` - Main UI component with chat logic, message state, streaming
 
-### Key Components
-- **index.tsx**: Main entry point, creates React root, applies theme CSS custom properties, returns cleanup function
-- **ChatbotWidget.tsx**: Thin wrapper component around ChatBot
-- **chatbotService.ts**: API integration layer (sendMessage, getChatHistory, checkHealth, session management)
-- **types.ts**: TypeScript interfaces for ChatbotConfig, Message, API responses
+### Service Layer
+`src/services/chatbotService.ts` manages:
+- API communication (POST `/api/v1/chat`, GET `/api/v1/chat/history/:sessionId`)
+- SSE streaming (POST `/api/v1/chat/stream`)
+- Session management (localStorage/sessionStorage/in-memory based on privacy settings)
+- Rate limit tracking from response headers
+- Dev mode logging
 
-### Build Configuration
-- **Vite**: Builds IIFE, UMD, and ES module formats
-- **Output**: `dist/lifestream-chatbot.{iife,umd,es}.js` and `dist/lifestream-chatbot.css`
-- **Bundling**: All dependencies bundled (no externals), React included in bundle
-- **Minification**: Terser with console/debugger removal
-- **Path alias**: `@/*` maps to `./src/*`
+### Programmatic API
+`src/index.tsx` exposes these functions globally via `window.LifestreamChatbot`:
+- `init()`, `open()`, `close()`, `toggle()`, `sendMessage()`, `getSessionId()`, `isOpen()`
+- `grantConsent()`, `revokeConsent()`, `clearHistory()`
+- `on()`, `off()` - Event system for 'open', 'close', 'message', 'error' events
 
-### API Integration
-Backend expects (compatible with chatbot-api v1.0.0+):
-- **POST /api/v1/chat**: Send message with `{message, session_id, metadata?}`, returns `{message, session_id, tokens_used, model?, finish_reason?, content_safety?}`
-- **POST /api/v1/chat/stream**: Send message and receive SSE streaming response (real-time token-by-token)
-- **GET /api/v1/chat/history/:sessionId?limit=N&offset=N**: Retrieve paginated conversation history with `total_count` and `has_more`
-- **GET /health**: Health check endpoint
-- **GET /health/detailed**: Detailed health check with dependencies
-- **GET /health/ready**: Readiness probe
-- **GET /health/live**: Liveness probe
+### Type Definitions
+`src/types.ts` contains:
+- `ChatbotConfig` - Full configuration interface
+- `ChatBotHandle` - Ref interface for programmatic control
+- `ChatResponse`, `ChatHistoryResponse` - API response types
+- Event types: `ChatbotEventName`, `ChatbotMessageEvent`, `ChatbotErrorEvent`
 
-**Key Changes in v1.0.0:**
-- Response field changed from `response` to `message` (widget handles backwards compatibility)
-- New response fields: `model`, `finish_reason`, `content_safety`
-- Rate limit headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-Token-Limit`, `X-Token-Used`, `X-Token-Remaining`
-- Pagination support with `limit`, `offset`, `total_count`, `has_more`
-- Content safety warnings for PII detection and content filtering
+### Build Output
+Vite builds three formats to `dist/`:
+- `lifestream-chatbot.iife.js` - For script tags
+- `lifestream-chatbot.umd.js` - For CommonJS/AMD
+- `lifestream-chatbot.es.js` - For ES modules
+- `lifestream-chatbot.css` - Styles
 
-Authentication: Bearer token (public key format: `pk_...`)
-Session ID pattern: `sess_[alphanumeric]` (validated before API calls)
-Storage: localStorage (default), sessionStorage (optional), or in-memory (privacy mode).
+All dependencies (including React) are bundled. Production builds strip console logs and debuggers.
 
-### Streaming Support
-Widget supports two modes:
-1. **Standard mode** (default): Single response after full generation
-2. **Streaming mode** (`enableStreaming: true`): Real-time token-by-token streaming via Server-Sent Events
-
-Streaming implementation:
-- Uses `/api/v1/chat/stream` endpoint
-- Processes SSE events with format: `data: {"chunk": "text"}` and `data: {"done": true}`
-- Updates UI in real-time as chunks arrive
-- Graceful fallback to error state on stream failure
-
-### Initialization Pattern
-```javascript
-const cleanup = initLifestreamChatbot({
-  apiUrl: 'https://api.example.com/api/v1',
-  apiKey: 'pk_your_public_key',
-  theme: { primaryColor: '#ff6b6b', position: 'bottom-right' },
-  welcomeMessage: 'Hello!',
-  autoOpen: false,
-  sessionStorage: false, // use localStorage by default
-  enableStreaming: false, // enable streaming mode (default: false)
-  metadata: { source: 'website', page: 'home' }, // optional metadata
-
-  // NEW in v1.0.0+
-  enableDevMode: false, // developer console logging
-  privacy: {
-    enableSessionStorage: true, // allow localStorage/sessionStorage
-    disableAnalytics: false,    // disable usage tracking
-    dataRetentionDays: 30,      // data retention period (documentation only)
-    consentRequired: false       // require consent before storage
-  }
-});
-
-// Privacy management (NEW)
-import { grantConsent, revokeConsent, clearHistory } from '@lifestream/chatbot-widget';
-
-// Grant consent after user accepts privacy policy
-grantConsent();
-
-// Revoke consent and clear data
-revokeConsent();
-
-// Clear conversation history
-clearHistory();
-
-// Later: cleanup() to unmount and remove DOM element
+### Path Aliases
+```typescript
+// vite.config.ts and vitest.config.ts
+'@/*' → './src/*'
 ```
 
-## New Features (v1.0.0+)
+### API Contract (chatbot-api v1.0.0+)
+- `POST /api/v1/chat` - Send message, returns `{message, session_id, tokens_used, model?, finish_reason?, content_safety?}`
+- `POST /api/v1/chat/stream` - SSE streaming: `data: {"chunk": "text"}`, `data: {"done": true}`
+- `GET /api/v1/chat/history/:sessionId?limit=N&offset=N` - Paginated history with `has_more`
+- `GET /health` - Health check
 
-### Content Safety Warnings
-- PII detection warnings display inline with messages
-- Shows "⚠️ Personal information detected and protected" when redaction occurs
-- Configurable via API backend settings
-- Styled with amber warning colors for visibility
+Auth: Bearer token (`pk_...`). Session ID pattern: `sess_[timestamp]_[random]`.
 
-### Pagination
-- "Load More Messages" button at top of chat when `has_more: true`
-- Loads 20 messages at a time with offset-based pagination
-- Prepends older messages while maintaining scroll position
-- Loading state with disabled button during fetch
+## Testing
 
-### Privacy Controls
-- **Standard Mode**: Uses localStorage/sessionStorage for persistence
-- **Privacy Mode**: In-memory storage when consent not granted
-- **Consent Management**: `grantConsent()` moves data from memory to storage
-- **Data Deletion**: `revokeConsent()` and `clearHistory()` for GDPR/PIPEDA compliance
-- Session IDs validated against pattern `^sess_[a-zA-Z0-9]+$`
+- **Framework**: Vitest with @testing-library/react
+- **Location**: `tests/` directory
+- **Setup**: `tests/setup.ts` (jsdom environment, globals enabled)
+- **Coverage threshold**: 70% (statements, branches, functions, lines)
 
-### Developer Mode
-- Console logging for debugging and monitoring
-- Logs rate limits: "95/100 requests remaining"
-- Logs token usage: "125,000/1,000,000 used today (12.5%)"
-- Logs response times and model info
-- Logs content safety detections
-- Enable via `enableDevMode: true` in config
+## CI/CD
 
-### Enhanced Error Handling
-- Message length validation (max 10,000 chars)
-- Better error messages for rate limits (with retry countdown)
-- Quota exceeded warnings with reset times
-- Network error detection and user-friendly messages
+GitHub Actions in `.github/workflows/ci.yml`:
+1. **Lint** - ESLint + Prettier check (parallel)
+2. **Type check** - `tsc --noEmit` (parallel)
+3. **Test** - Run tests with coverage, upload artifacts (parallel)
+4. **Build** - Runs after lint, typecheck, test pass; verifies dist artifacts exist
+
+Triggers on push/PR to `main` and `develop` branches.
 
 ## Important Notes
 
-- All React dependencies are bundled into the output files
-- Widget creates/mounts to `#lifestream-chatbot-root` div
-- Theme applied via CSS custom properties on `:root`
-- Service configuration (API URL/key) set globally via `configure()`
-- TypeScript strict mode enabled
-- Production builds drop console logs and debuggers (except error logs)
-- Response field mapping: API returns `message`, widget internally uses `response` for backwards compatibility
-- Rate limit info tracked in headers but only logged in dev mode (not shown to users)
+- Widget mounts to `#lifestream-chatbot-root` div (auto-created if not present)
+- Theme applied via CSS custom properties on `:root` (e.g., `--chatbot-primary`)
+- Privacy mode uses in-memory storage when consent not granted
+- Node.js v20 required (see `.nvmrc`)

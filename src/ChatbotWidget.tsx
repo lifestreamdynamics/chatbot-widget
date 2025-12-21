@@ -1,15 +1,20 @@
-import { StrictMode } from 'react';
+import { StrictMode, forwardRef } from 'react';
 import ChatBot from './components/ChatBot';
-import { ChatbotConfig } from './types';
+import { ChatbotConfig, ChatBotHandle, ChatbotEventName, ChatbotMessageEvent, ChatbotErrorEvent } from './types';
 
 interface ChatbotWidgetProps {
   config: ChatbotConfig;
+  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => void;
 }
 
-export default function ChatbotWidget({ config }: ChatbotWidgetProps) {
+const ChatbotWidget = forwardRef<ChatBotHandle, ChatbotWidgetProps>(({ config, onEmit }, ref) => {
   return (
     <StrictMode>
-      <ChatBot config={config} />
+      <ChatBot ref={ref} config={config} onEmit={onEmit} />
     </StrictMode>
   );
-}
+});
+
+ChatbotWidget.displayName = 'ChatbotWidget';
+
+export default ChatbotWidget;

@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { MessageCircle, Minus, Send, Sparkles, Bot } from '../utils/icons';
 import { cn } from '../utils/cn';
 import * as chatbotService from '../services/chatbotService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message, ChatbotConfig, ContentSafetyWarning } from '../types';
+import { Message, ChatbotConfig, ContentSafetyWarning, ChatBotHandle, ChatbotEventName, ChatbotMessageEvent, ChatbotErrorEvent } from '../types';
 
 interface ChatBotProps {
   config: ChatbotConfig;
+  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => void;
 }
 
 interface MessageWithSafety extends Message {
   contentSafety?: ContentSafetyWarning;
 }
 
-export default function ChatBot({ config }: ChatBotProps) {
+const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref) => {
   const [isOpen, setIsOpen] = useState(config.autoOpen || false);
   const [messages, setMessages] = useState<MessageWithSafety[]>([]);
   const [input, setInput] = useState('');
@@ -27,6 +28,34 @@ export default function ChatBot({ config }: ChatBotProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Emit helper for event system
+  const emit = useCallback((event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => {
+    onEmit?.(event, data);
+  }, [onEmit]);
+
+  // Handle open/close with event emission and focus management
+  const handleOpen = useCallback(() => {
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    setIsOpen(true);
+    emit('open');
+    // Focus input after render
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [emit]);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    emit('close');
+    // Return focus to previous element
+    requestAnimationFrame(() => {
+      previousFocusRef.current?.focus();
+    });
+  }, [emit]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,6 +70,40 @@ export default function ChatBot({ config }: ChatBotProps) {
       inputRef.current?.focus();
     }
   }, [isOpen]);
+
+  // Keyboard navigation: Escape to close, focus trap
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+        return;
+      }
+
+      // Focus trap: Tab cycles within widget
+      if (e.key === 'Tab' && containerRef.current) {
+        const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -110,14 +173,14 @@ export default function ChatBot({ config }: ChatBotProps) {
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessageInternal = useCallback(async (messageText?: string) => {
+    const text = messageText || input.trim();
+    if (!text || isLoading) return;
 
-    const messageText = input.trim();
     const userMessage: MessageWithSafety = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: messageText,
+      content: text,
       timestamp: new Date(),
     };
 
@@ -126,22 +189,26 @@ export default function ChatBot({ config }: ChatBotProps) {
     setIsLoading(true);
     setIsTyping(true);
 
+    // Emit user message event
+    emit('message', { role: 'user', content: text, timestamp: userMessage.timestamp });
+
     try {
       // Streaming mode
       if (config.enableStreaming) {
         const assistantId = `assistant-${Date.now()}`;
         let streamedContent = '';
+        const assistantTimestamp = new Date();
 
         // Add placeholder message for streaming
         const placeholderMessage: MessageWithSafety = {
           id: assistantId,
           role: 'assistant',
           content: '',
-          timestamp: new Date(),
+          timestamp: assistantTimestamp,
         };
         setMessages(prev => [...prev, placeholderMessage]);
 
-        const response = await chatbotService.sendMessage(messageText, {
+        const response = await chatbotService.sendMessage(text, {
           metadata: config.metadata,
           onChunk: (chunk: string) => {
             streamedContent += chunk;
@@ -164,32 +231,40 @@ export default function ChatBot({ config }: ChatBotProps) {
                 : msg
             )
           );
-        } else if (response.data?.content_safety) {
-          // Update message with content safety info
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === assistantId
-                ? { ...msg, contentSafety: response.data?.content_safety }
-                : msg
-            )
-          );
+          emit('error', { type: 'api', message: errorContent, details: response.error });
+        } else {
+          // Emit assistant message event
+          emit('message', { role: 'assistant', content: streamedContent, timestamp: assistantTimestamp });
+          if (response.data?.content_safety) {
+            // Update message with content safety info
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === assistantId
+                  ? { ...msg, contentSafety: response.data?.content_safety }
+                  : msg
+              )
+            );
+          }
         }
       } else {
         // Normal mode (non-streaming)
-        const response = await chatbotService.sendMessage(messageText, {
+        const response = await chatbotService.sendMessage(text, {
           metadata: config.metadata,
         });
 
         if (response.success && response.data) {
+          const assistantContent = response.data.response || response.data.message || '';
           const assistantMessage: MessageWithSafety = {
             id: `assistant-${Date.now()}`,
             role: 'assistant',
-            content: response.data.response || response.data.message || '',
+            content: assistantContent,
             timestamp: new Date(),
             contentSafety: response.data.content_safety,
           };
 
           setMessages(prev => [...prev, assistantMessage]);
+          // Emit assistant message event
+          emit('message', { role: 'assistant', content: assistantContent, timestamp: assistantMessage.timestamp });
         } else {
           const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
 
@@ -201,24 +276,54 @@ export default function ChatBot({ config }: ChatBotProps) {
           };
 
           setMessages(prev => [...prev, errorMessage]);
+          emit('error', { type: 'api', message: errorContent, details: response.error });
         }
       }
     } catch (error) {
       console.error('[Chatbot] Chat error:', error);
 
+      const errorContent = 'Unable to connect to the chat service. Please check your internet connection and try again.';
       const errorMessage: MessageWithSafety = {
         id: `error-${Date.now()}`,
         role: 'system',
-        content: 'Unable to connect to the chat service. Please check your internet connection and try again.',
+        content: errorContent,
         timestamp: new Date(),
       };
 
       setMessages(prev => [...prev, errorMessage]);
+      emit('error', { type: 'network', message: errorContent, details: error });
     } finally {
       setIsLoading(false);
       setIsTyping(false);
     }
-  };
+  }, [input, isLoading, config.enableStreaming, config.metadata, emit]);
+
+  // Expose imperative handle for programmatic control
+  useImperativeHandle(ref, () => ({
+    open: handleOpen,
+    close: handleClose,
+    toggle: () => {
+      if (isOpen) {
+        handleClose();
+      } else {
+        handleOpen();
+      }
+    },
+    sendMessage: async (text: string) => {
+      if (text.trim()) {
+        setInput(text);
+        // Use setTimeout to ensure state update before send
+        setTimeout(() => {
+          sendMessageInternal(text.trim());
+        }, 0);
+      }
+    },
+    getSessionId: () => chatbotService.getSessionId(),
+    isOpen: () => isOpen,
+  }), [isOpen, handleOpen, handleClose, sendMessageInternal]);
+
+  // Wrapper for button/keyboard triggered sends
+  const sendMessage = () => sendMessageInternal();
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -251,10 +356,14 @@ export default function ChatBot({ config }: ChatBotProps) {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        ref={buttonRef}
+        onClick={handleOpen}
         className="chatbot-button"
         style={getPositionStyles()}
         aria-label="Open chat"
+        aria-expanded={false}
+        aria-controls="chatbot-dialog"
+        data-testid="chatbot-button"
       >
         <div className="chatbot-button-ping" />
         <MessageCircle className="chatbot-button-icon" />
@@ -267,7 +376,13 @@ export default function ChatBot({ config }: ChatBotProps) {
 
   return (
     <div
+      ref={containerRef}
+      id="chatbot-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chatbot-title"
       className="chatbot-container"
+      data-testid="chatbot-container"
       style={{
         ...getPositionStyles(),
         maxWidth: config.maxWidth || '450px',
@@ -284,24 +399,33 @@ export default function ChatBot({ config }: ChatBotProps) {
             <div className="chatbot-status-indicator" />
           </div>
           <div>
-            <h3 className="chatbot-title">{config.title || 'AI Assistant'}</h3>
-            <p className="chatbot-subtitle">
+            <h2 id="chatbot-title" className="chatbot-title">{config.title || 'AI Assistant'}</h2>
+            <p className="chatbot-subtitle" aria-live="polite">
               {isTyping ? 'Typing...' : (config.subtitle || 'Online')}
             </p>
           </div>
         </div>
 
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
           className="chatbot-minimize-btn"
           aria-label="Minimize chat"
+          data-testid="chatbot-minimize"
         >
           <Minus className="chatbot-minimize-icon" />
         </button>
       </div>
 
       {/* Messages Area */}
-      <div className="chatbot-messages" ref={messagesContainerRef}>
+      <div
+        className="chatbot-messages"
+        ref={messagesContainerRef}
+        role="log"
+        aria-live="polite"
+        aria-busy={isLoading}
+        aria-label="Chat messages"
+        data-testid="chatbot-messages"
+      >
         {/* Load More Button */}
         {hasMoreHistory && (
           <div className="chatbot-load-more-wrapper">
@@ -393,24 +517,27 @@ export default function ChatBot({ config }: ChatBotProps) {
             placeholder="Type your message..."
             disabled={isLoading}
             className="chatbot-input"
+            data-testid="chatbot-input"
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
             className="chatbot-send-btn"
             aria-label="Send message"
+            data-testid="chatbot-send"
           >
             <Send className="chatbot-send-icon" />
           </button>
         </div>
 
         {/* Quick actions */}
-        <div className="chatbot-quick-actions">
+        <div className="chatbot-quick-actions" data-testid="chatbot-quick-actions">
           {quickActions.map((action, idx) => (
             <button
               key={idx}
               onClick={() => setInput(action.message)}
               className="chatbot-quick-action-btn"
+              data-testid={`chatbot-quick-action-${idx}`}
             >
               {action.label}
             </button>
@@ -419,4 +546,8 @@ export default function ChatBot({ config }: ChatBotProps) {
       </div>
     </div>
   );
-}
+});
+
+ChatBot.displayName = 'ChatBot';
+
+export default ChatBot;
