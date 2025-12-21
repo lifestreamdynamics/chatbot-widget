@@ -1,6 +1,6 @@
 {
   "name": "@lifestreamdynamics/chatbot-widget",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Framework-agnostic AI chatbot widget with privacy controls, content safety, and pagination - embeddable on any website with a single script tag",
   "type": "module",
   "main": "./dist/lifestream-chatbot.umd.js",
