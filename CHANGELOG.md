@@ -253,5 +253,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Support
 
 For questions about changes or upgrading:
-- GitHub Issues: https://github.com/lifestream-dynamics/chatbot-widget/issues
+- GitHub Issues: https://github.com/lifestreamdynamics/chatbot-widget/issues
 - Email: support@lifestreamdynamics.com

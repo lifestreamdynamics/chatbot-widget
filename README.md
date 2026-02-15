@@ -70,7 +70,7 @@ npm install @lifestream/chatbot-widget
 
 ### Option 3: Manual Download
 
-1. Download the latest release from [GitHub Releases](https://github.com/lifestream-dynamics/chatbot-widget/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/lifestreamdynamics/chatbot-widget/releases)
 2. Extract `lifestream-chatbot.css` and `lifestream-chatbot.iife.js`
 3. Include them in your project
 
@@ -551,7 +551,7 @@ Health check endpoint.
 }
 ```
 
-> **Note:** The widget is compatible with the [chatbot-api](https://github.com/lifestream-dynamics/chatbot-api) v1.0.0+ backend.
+> **Note:** The widget is compatible with the [chatbot-api](https://github.com/lifestreamdynamics/chatbot-api) v1.0.0+ backend.
 
 ## 🛡️ Content Safety & Warnings
 
@@ -1307,7 +1307,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 ## 💬 Support
 
 - **Documentation**: This README and [`examples/`](./examples) directory
-- **GitHub Issues**: [Report bugs or request features](https://github.com/lifestream-dynamics/chatbot-widget/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/lifestreamdynamics/chatbot-widget/issues)
 - **Email**: eric@mittonvillage.com
 
 ## 🔄 Changelog

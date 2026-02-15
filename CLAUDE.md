@@ -63,7 +63,7 @@ Vite builds three formats to `dist/`:
 - `lifestream-chatbot.es.js` - For ES modules
 - `lifestream-chatbot.css` - Styles
 
-All dependencies (including React) are bundled. Production builds strip console logs and debuggers.
+All dependencies (including React) are bundled. Production builds strip console logs and debuggers. Sourcemaps are generated for debugging.
 
 ### Path Aliases
 ```typescript
@@ -89,12 +89,12 @@ Auth: Bearer token (`pk_...`). Session ID pattern: `sess_[timestamp]_[random]`.
 ## CI/CD
 
 GitHub Actions in `.github/workflows/ci.yml`:
-1. **Lint** - ESLint + Prettier check (parallel)
-2. **Type check** - `tsc --noEmit` (parallel)
-3. **Test** - Run tests with coverage, upload artifacts (parallel)
-4. **Build** - Runs after lint, typecheck, test pass; verifies dist artifacts exist
+1. **Lint** - ESLint + Prettier check (runs in parallel)
+2. **Type check** - `tsc --noEmit` (runs in parallel)
+3. **Test** - Run tests with coverage, upload artifacts (runs in parallel)
+4. **Build** - Runs sequentially after lint/typecheck/test pass; verifies dist artifacts exist (umd.js, es.js, css)
 
-Triggers on push/PR to `main` and `develop` branches.
+Triggers on push/PR to `main` and `develop` branches. All jobs use Node version from `.nvmrc`.
 
 ## Important Notes
 

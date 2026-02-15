@@ -35,12 +35,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lifestream-dynamics/chatbot-widget.git"
+    "url": "git+https://github.com/lifestreamdynamics/chatbot-widget.git"
   },
   "bugs": {
-    "url": "https://github.com/lifestream-dynamics/chatbot-widget/issues"
+    "url": "https://github.com/lifestreamdynamics/chatbot-widget/issues"
   },
-  "homepage": "https://github.com/lifestream-dynamics/chatbot-widget#readme",
+  "homepage": "https://github.com/lifestreamdynamics/chatbot-widget#readme",
   "keywords": [
     "chatbot",
     "widget",
