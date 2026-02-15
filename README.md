@@ -104,7 +104,7 @@ npm install @lifestream/chatbot-widget
 
 ```jsx
 import { useEffect } from 'react';
-import initLifestreamChatbot from '@lifestream/chatbot-widget';
+import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
 import '@lifestream/chatbot-widget/style.css';
 
 function App() {
@@ -132,7 +132,7 @@ export default App;
 
 <script setup>
 import { onMounted, onUnmounted } from 'vue';
-import initLifestreamChatbot from '@lifestream/chatbot-widget';
+import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
 import '@lifestream/chatbot-widget/style.css';
 
 let cleanup;
@@ -154,7 +154,7 @@ onUnmounted(() => {
 
 ```typescript
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import initLifestreamChatbot from '@lifestream/chatbot-widget';
+import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
 import '@lifestream/chatbot-widget/style.css';
 
 @Component({
@@ -184,7 +184,7 @@ export class AppComponent implements OnInit, OnDestroy {
 ```svelte
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import initLifestreamChatbot from '@lifestream/chatbot-widget';
+  import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
   import '@lifestream/chatbot-widget/style.css';
 
   let cleanup;
@@ -886,7 +886,8 @@ function handleLogout() {
 ### Complete Example
 
 ```javascript
-import initLifestreamChatbot, {
+import {
+  initLifestreamChatbot,
   grantConsent,
   revokeConsent,
   clearHistory

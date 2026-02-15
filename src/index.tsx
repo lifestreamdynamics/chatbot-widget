@@ -178,4 +178,3 @@ if (typeof window !== 'undefined') {
 }
 
 export type { ChatbotConfig, ChatBotHandle, ChatbotEventName, ChatbotMessageEvent, ChatbotErrorEvent } from './types';
-export default initLifestreamChatbot;
