@@ -54,7 +54,7 @@ npx vitest tests/components/ChatBot.test.tsx --watch  # Watch mode for single fi
 - `ChatbotConfig` - Full configuration interface
 - `ChatBotHandle` - Ref interface for programmatic control
 - `ChatResponse`, `ChatHistoryResponse` - API response types
-- Event types: `ChatbotEventName`, `ChatbotMessageEvent`, `ChatbotErrorEvent`
+- Event types: `ChatbotEventName`, `ChatbotMessageEvent`, `ChatbotErrorEvent`, `ChatbotEventCallback`, `ChatbotEventEmitter`
 
 ### Build Output
 Vite builds three formats to `dist/`:
@@ -86,15 +86,23 @@ Auth: Bearer token (`pk_...`). Session ID pattern: `sess_[timestamp]_[random]`.
 - **Setup**: `tests/setup.ts` (jsdom environment, globals enabled)
 - **Coverage threshold**: 70% (statements, branches, functions, lines)
 
+### Test Files
+
+- `tests/setup.ts` — jsdom environment, globals
+- `tests/chatbotService.test.ts` — service layer tests
+- `tests/components/ChatBot.test.tsx` — main component tests
+- `tests/components/ChatbotWidget.test.tsx` — wrapper component tests
+- `tests/index.test.tsx` — public API layer tests (init, events, consent, globals)
+
 ## CI/CD
 
 GitHub Actions in `.github/workflows/ci.yml`:
 1. **Lint** - ESLint + Prettier check (runs in parallel)
 2. **Type check** - `tsc --noEmit` (runs in parallel)
 3. **Test** - Run tests with coverage, upload artifacts (runs in parallel)
-4. **Build** - Runs sequentially after lint/typecheck/test pass; verifies dist artifacts exist (umd.js, es.js, css)
+4. **Build** - Runs sequentially after lint/typecheck/test pass; verifies dist artifacts exist (iife.js, umd.js, es.js, css)
 
-Triggers on push/PR to `main` and `develop` branches. All jobs use Node version from `.nvmrc`.
+Triggers on push/PR to `main`, `master`, and `develop` branches. All jobs use Node version from `.nvmrc`.
 
 ## Important Notes
 
@@ -102,3 +110,16 @@ Triggers on push/PR to `main` and `develop` branches. All jobs use Node version 
 - Theme applied via CSS custom properties on `:root` (e.g., `--chatbot-primary`)
 - Privacy mode uses in-memory storage when consent not granted
 - Node.js v20 required (see `.nvmrc`)
+- NPM package scope is `@lifestreamdynamics/chatbot-widget` (README examples must use this scope, not `@lifestream`)
+- Privacy config canonical keys: `enableSessionStorage`, `consentRequired`, `disableAnalytics` (planned, warns if used), `dataRetentionDays` (planned, warns if used). README privacy examples must match these.
+- Default widget position is `bottom-right` (ChatBot.tsx), not `bottom-left`.
+- Console log prefix is `[LifestreamChatbot]` everywhere.
+
+### Privacy Storage Behavior (runtime)
+
+- `privacy.enableSessionStorage: true` → uses browser `sessionStorage` (NOT in-memory). Takes precedence over top-level `sessionStorage`.
+- `privacy.enableSessionStorage: false` → disables all persistent storage, forces in-memory
+- `privacy.consentRequired: true` → forces in-memory until `grantConsent()` called
+- In-memory mode: session ID stored in module-level `memorySessionId` variable
+- `revokeConsent()`: switches to in-memory session AND closes chat UI, clears messages, emits `close` event
+- Top-level `config.sessionStorage` is deprecated in favor of `privacy.enableSessionStorage` (will be removed in v3.0.0)

@@ -3,7 +3,7 @@
 A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Integrate an intelligent chatbot into any website with just a few lines of code.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://img.shields.io/npm/v/@lifestream/chatbot-widget.svg)](https://www.npmjs.com/package/@lifestream/chatbot-widget)
+[![npm version](https://img.shields.io/npm/v/@lifestreamdynamics/chatbot-widget.svg)](https://www.npmjs.com/package/@lifestreamdynamics/chatbot-widget)
 
 ## 📖 Table of Contents
 
@@ -55,17 +55,17 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 ### Option 1: NPM (Recommended)
 
 ```bash
-npm install @lifestream/chatbot-widget
+npm install @lifestreamdynamics/chatbot-widget
 ```
 
 ### Option 2: CDN
 
 ```html
 <!-- CSS -->
-<link rel="stylesheet" href="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.css">
+<link rel="stylesheet" href="https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/lifestream-chatbot.css">
 
 <!-- JavaScript -->
-<script src="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
+<script src="https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
 ```
 
 ### Option 3: Manual Download
@@ -84,12 +84,12 @@ npm install @lifestream/chatbot-widget
 <head>
   <meta charset="UTF-8">
   <title>My Website</title>
-  <link rel="stylesheet" href="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.css">
+  <link rel="stylesheet" href="https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/lifestream-chatbot.css">
 </head>
 <body>
   <h1>Welcome to My Website</h1>
 
-  <script src="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
+  <script src="https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
   <script>
     initLifestreamChatbot({
       apiUrl: 'https://your-api.com/api/v1',
@@ -104,8 +104,8 @@ npm install @lifestream/chatbot-widget
 
 ```jsx
 import { useEffect } from 'react';
-import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
-import '@lifestream/chatbot-widget/style.css';
+import { initLifestreamChatbot } from '@lifestreamdynamics/chatbot-widget';
+import '@lifestreamdynamics/chatbot-widget/style.css';
 
 function App() {
   useEffect(() => {
@@ -132,8 +132,8 @@ export default App;
 
 <script setup>
 import { onMounted, onUnmounted } from 'vue';
-import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
-import '@lifestream/chatbot-widget/style.css';
+import { initLifestreamChatbot } from '@lifestreamdynamics/chatbot-widget';
+import '@lifestreamdynamics/chatbot-widget/style.css';
 
 let cleanup;
 
@@ -154,8 +154,8 @@ onUnmounted(() => {
 
 ```typescript
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
-import '@lifestream/chatbot-widget/style.css';
+import { initLifestreamChatbot } from '@lifestreamdynamics/chatbot-widget';
+import '@lifestreamdynamics/chatbot-widget/style.css';
 
 @Component({
   selector: 'app-root',
@@ -184,8 +184,8 @@ export class AppComponent implements OnInit, OnDestroy {
 ```svelte
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { initLifestreamChatbot } from '@lifestream/chatbot-widget';
-  import '@lifestream/chatbot-widget/style.css';
+  import { initLifestreamChatbot } from '@lifestreamdynamics/chatbot-widget';
+  import '@lifestreamdynamics/chatbot-widget/style.css';
 
   let cleanup;
 
@@ -233,7 +233,7 @@ The API response field has been changed from `response` to `message` for consist
     "message": "Here's my answer...",
     "session_id": "sess_123",
     "model": "gemini-2.0-flash-exp",
-    "finish_reason": "STOP",
+    "finish_reason": "stop",
     "tokens_used": 45
   }
 }
@@ -293,7 +293,7 @@ theme: {
   surfaceColor: '#151515',       // Message bubble background
   textColor: '#ffffff',          // Text color
   borderColor: '#2a2a2a',        // Border color
-  position: 'bottom-left',       // Widget position on screen
+  position: 'bottom-right',      // Widget position on screen
   positionOffset: {
     x: '1.5rem',                 // Horizontal offset from edge
     y: '1.5rem'                  // Vertical offset from edge
@@ -302,8 +302,8 @@ theme: {
 ```
 
 **Position Options:**
-- `bottom-left` (default)
-- `bottom-right`
+- `bottom-right` (default)
+- `bottom-left`
 - `top-left`
 - `top-right`
 
@@ -311,12 +311,11 @@ theme: {
 
 ```typescript
 privacy: {
-  enablePrivacyMode: false,       // Use in-memory storage instead of localStorage
-  requireConsent: false,           // Require explicit user consent before chatting
-  consentMessage: 'Custom message', // Custom consent message (optional)
-  showDataRetentionInfo: true,    // Show data retention information
-  allowDataDeletion: true,         // Show "Clear History" option
-  complianceMode: 'gdpr'           // 'gdpr', 'pipeda', or undefined
+  enableSessionStorage: false,    // Use sessionStorage instead of localStorage
+  consentRequired: false,          // Require explicit user consent before chatting
+  disableAnalytics: false,         // (planned — not yet active)
+  dataRetentionDays: undefined,    // (planned — not yet active)
+  // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
 }
 ```
 
@@ -324,17 +323,10 @@ privacy: {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enablePrivacyMode` | `boolean` | `false` | Use in-memory storage only (no localStorage/sessionStorage) |
-| `requireConsent` | `boolean` | `false` | Require explicit user consent before enabling chat |
-| `consentMessage` | `string` | Auto-generated | Custom consent message based on compliance mode |
-| `showDataRetentionInfo` | `boolean` | `true` | Display data retention information in consent dialog |
-| `allowDataDeletion` | `boolean` | `true` | Show "Clear History" option in chat menu |
-| `complianceMode` | `string` | `undefined` | Compliance framework: `'gdpr'`, `'pipeda'`, or `undefined` |
-
-**Compliance Modes:**
-- **GDPR** (EU): Emphasizes data minimization and user rights
-- **PIPEDA** (Canada): Focuses on consent and transparency
-- **None**: Standard privacy controls without specific compliance language
+| `enableSessionStorage` | `boolean` | `false` | Use sessionStorage instead of localStorage |
+| `consentRequired` | `boolean` | `false` | Require explicit user consent before enabling chat |
+| `disableAnalytics` | `boolean` | `false` | (planned — not yet active) Will disable analytics metadata in future releases |
+| `dataRetentionDays` | `number` | `undefined` | (planned — not yet active) Will configure session retention in future releases |
 
 ### Quick Actions
 
@@ -366,11 +358,9 @@ initLifestreamChatbot({
 
   // Privacy & Compliance
   privacy: {
-    enablePrivacyMode: false,
-    requireConsent: true,
-    complianceMode: 'gdpr',
-    showDataRetentionInfo: true,
-    allowDataDeletion: true
+    enableSessionStorage: false,
+    consentRequired: true,
+    // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
   },
 
   // Metadata for analytics
@@ -443,11 +433,11 @@ Content-Type: application/json
     "message": "We offer AI development, web development, and technical consulting services.",
     "session_id": "sess_1234567890_abc123",
     "model": "gemini-2.0-flash-exp",
-    "finish_reason": "STOP",
+    "finish_reason": "stop",
     "tokens_used": 45,
     "content_safety": {
-      "has_pii": false,
-      "pii_types": []
+      "warnings": [],
+      "redactions_applied": false
     }
   }
 }
@@ -460,7 +450,7 @@ Content-Type: application/json
 | `message` | `string` | The AI-generated response message |
 | `session_id` | `string` | Unique session identifier for conversation context |
 | `model` | `string` | AI model used for generation (e.g., `gemini-2.0-flash-exp`) |
-| `finish_reason` | `string` | Completion reason: `STOP`, `MAX_TOKENS`, `SAFETY`, etc. |
+| `finish_reason` | `string` | Completion reason: `stop`, `max_tokens`, `safety`, `error`, etc. |
 | `tokens_used` | `number` | Total tokens consumed in this request |
 | `content_safety` | `object` | Content safety metadata (optional) |
 
@@ -498,12 +488,12 @@ Retrieve conversation history for a session with pagination support.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `page` | `number` | `1` | Page number (1-indexed) |
-| `limit` | `number` | `50` | Messages per page (max 100) |
+| `limit` | `number` | `50` | Number of messages to return (max 100) |
+| `offset` | `number` | `0` | Number of messages to skip (for pagination) |
 
 **Example Request:**
 ```
-GET /api/v1/chat/history/sess_1234567890_abc123?page=1&limit=20
+GET /api/v1/chat/history/sess_1234567890_abc123?limit=20&offset=0
 ```
 
 **Response:**
@@ -524,13 +514,7 @@ GET /api/v1/chat/history/sess_1234567890_abc123?page=1&limit=20
         "created_at": "2025-01-15T10:30:02.000Z"
       }
     ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total_messages": 45,
-      "total_pages": 3,
-      "has_more": true
-    }
+    "has_more": true
   }
 }
 ```
@@ -601,79 +585,76 @@ The widget provides comprehensive privacy controls to help you comply with GDPR,
 - Persistent across browser sessions
 - User can clear history manually
 
-#### Privacy Mode
+#### Session Storage Mode
 ```javascript
 privacy: {
-  enablePrivacyMode: true
+  enableSessionStorage: true
 }
 ```
-- Session data stored in memory only
-- Cleared when widget is closed or page refreshes
-- No persistent storage used
-- Ideal for sensitive environments
+- Session data stored in browser `sessionStorage`
+- Cleared when the tab is closed (not just on page refresh)
+- More private than localStorage, but still browser-based storage
+- Ideal for shared computers or single-session use cases
+
+#### In-Memory Mode (Consent Required)
+```javascript
+privacy: {
+  consentRequired: true
+}
+```
+- Before `grantConsent()` is called: session data held in memory only
+- No data written to localStorage or sessionStorage
+- Cleared on any page refresh or tab close
+- Ideal for regulated environments where explicit consent is mandatory
+
+**Storage Mode Summary:**
+
+| Config | Storage Used | Persists Across |
+|--------|-------------|-----------------|
+| Default (no privacy config) | `localStorage` | Browser sessions |
+| `privacy.enableSessionStorage: true` | `sessionStorage` | Page navigations (cleared when tab closes) |
+| `privacy.consentRequired: true` (before consent) | In-memory only | Nothing (cleared on refresh) |
 
 ### Consent Management
+
+> **Note:** The visual consent dialog UI is a planned feature. Currently, setting `consentRequired: true` enables in-memory storage mode (no localStorage). A visual consent screen is on the roadmap.
 
 Require explicit user consent before enabling the chatbot:
 
 ```javascript
 privacy: {
-  requireConsent: true,
-  complianceMode: 'gdpr',  // or 'pipeda'
-  consentMessage: 'We use this chatbot to assist you. Your conversation data will be processed according to our privacy policy.',
-  showDataRetentionInfo: true
+  consentRequired: true,
+  // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
 }
 ```
 
-**Consent Dialog Features:**
-- Custom consent message based on compliance mode
-- Data retention information display
-- Accept/Decline buttons
+**Consent Behavior:**
+- When `consentRequired: true`, the widget uses in-memory storage only until consent is granted programmatically
+- Use `grantConsent()` / `revokeConsent()` to manage consent state from your own UI
 - Persistent consent state (stored separately from chat data)
 
-**GDPR Compliance (EU):**
+**GDPR / PIPEDA Compliance:**
+
+> **Note:** Built-in GDPR/PIPEDA compliance modes are planned features. Currently use `consentRequired: true` with your own consent UI and programmatic `grantConsent()` / `revokeConsent()` calls.
+
 ```javascript
 privacy: {
-  requireConsent: true,
-  complianceMode: 'gdpr',
-  allowDataDeletion: true
+  consentRequired: true,
 }
+
+// Grant consent after user accepts your custom dialog
+grantConsent();
 ```
-
-Default consent message emphasizes:
-- Right to access data
-- Right to deletion
-- Data minimization
-- Lawful processing basis
-
-**PIPEDA Compliance (Canada):**
-```javascript
-privacy: {
-  requireConsent: true,
-  complianceMode: 'pipeda',
-  allowDataDeletion: true
-}
-```
-
-Default consent message emphasizes:
-- Meaningful consent
-- Transparency in data use
-- Accountability
-- Right to withdraw consent
 
 ### Data Deletion
 
 Users can delete their conversation history at any time:
 
-**Via Chat Menu:**
-1. Click the menu icon (⋮) in the chat header
-2. Select "Clear History"
-3. Confirm deletion
-4. All messages and session data are removed
+> **Note:** The in-widget menu UI is a planned feature. The `clearHistory()` function works programmatically. A menu icon in the chat header is on the roadmap.
 
 **Programmatically:**
 ```javascript
-import { clearHistory } from '@lifestream/chatbot-widget';
+import { clearHistory } from '@lifestreamdynamics/chatbot-widget';
 
 // Clear history for current session
 clearHistory();
@@ -681,19 +662,21 @@ clearHistory();
 
 ### Privacy Best Practices
 
-1. **Enable Privacy Mode for Sensitive Data:**
+1. **Enable Session Storage for Sensitive Data:**
    ```javascript
-   privacy: { enablePrivacyMode: true }
+   privacy: { enableSessionStorage: true }
    ```
 
 2. **Require Consent in Regulated Industries:**
    ```javascript
-   privacy: { requireConsent: true, complianceMode: 'gdpr' }
+   privacy: { consentRequired: true }
+   // Note: GDPR/PIPEDA compliance modes are planned features
    ```
 
-3. **Allow Data Deletion:**
+3. **Allow Data Deletion (Programmatic):**
    ```javascript
-   privacy: { allowDataDeletion: true }
+   import { clearHistory } from '@lifestreamdynamics/chatbot-widget';
+   clearHistory();
    ```
 
 4. **Combine with Backend Privacy Controls:**
@@ -744,19 +727,13 @@ Bot: Hi there!
 Your API must support pagination parameters on the history endpoint:
 
 ```
-GET /api/v1/chat/history/:sessionId?page=1&limit=20
+GET /api/v1/chat/history/:sessionId?limit=20&offset=0
 ```
 
-Response must include `pagination` metadata:
+Response must include a `has_more` boolean field:
 ```json
 {
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total_messages": 45,
-    "total_pages": 3,
-    "has_more": true
-  }
+  "has_more": true
 }
 ```
 
@@ -831,7 +808,7 @@ The widget exports utility functions for programmatic control over privacy and c
 Grant user consent programmatically:
 
 ```javascript
-import { grantConsent } from '@lifestream/chatbot-widget';
+import { grantConsent } from '@lifestreamdynamics/chatbot-widget';
 
 // Grant consent (e.g., after user accepts in a custom dialog)
 grantConsent();
@@ -847,16 +824,17 @@ grantConsent();
 Revoke user consent and disable the chatbot:
 
 ```javascript
-import { revokeConsent } from '@lifestream/chatbot-widget';
+import { revokeConsent } from '@lifestreamdynamics/chatbot-widget';
 
 // Revoke consent (e.g., user opts out)
 revokeConsent();
 ```
 
 **Effects:**
-- Chat becomes disabled
-- Consent dialog reappears if user tries to chat
-- Existing messages remain unless cleared separately
+- Switches to in-memory session storage (new session ID generated)
+- Previously stored session ID is removed from browser storage
+- Chat widget remains functional (UI is not disabled)
+- Note: UI-level consent gating is a planned feature — currently `revokeConsent()` only affects the storage layer
 
 ### Data Management
 
@@ -865,7 +843,7 @@ revokeConsent();
 Clear all conversation history and session data:
 
 ```javascript
-import { clearHistory } from '@lifestream/chatbot-widget';
+import { clearHistory } from '@lifestreamdynamics/chatbot-widget';
 
 // Clear all messages and session data
 clearHistory();
@@ -891,16 +869,15 @@ import {
   grantConsent,
   revokeConsent,
   clearHistory
-} from '@lifestream/chatbot-widget';
-import '@lifestream/chatbot-widget/style.css';
+} from '@lifestreamdynamics/chatbot-widget';
+import '@lifestreamdynamics/chatbot-widget/style.css';
 
 // Initialize widget
 const cleanup = initLifestreamChatbot({
   apiUrl: 'https://api.example.com/api/v1',
   apiKey: 'pk_your_key',
   privacy: {
-    requireConsent: true,
-    complianceMode: 'gdpr'
+    consentRequired: true,
   }
 });
 
@@ -945,7 +922,7 @@ The widget exposes a programmatic API for controlling the chatbot from your appl
 ### Widget Control
 
 ```javascript
-import { open, close, toggle, sendMessage, getSessionId, isOpen } from '@lifestream/chatbot-widget';
+import { open, close, toggle, sendMessage, getSessionId, isOpen } from '@lifestreamdynamics/chatbot-widget';
 
 // Open the chat window
 open();
@@ -973,7 +950,7 @@ if (isOpen()) {
 When using the script tag version, methods are available on `window.LifestreamChatbot`:
 
 ```html
-<script src="https://unpkg.com/@lifestream/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
+<script src="https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/lifestream-chatbot.iife.js"></script>
 <script>
   // Initialize
   LifestreamChatbot.init({
@@ -1008,7 +985,7 @@ Subscribe to widget events for deeper integration with your application.
 ### Usage
 
 ```javascript
-import { on, off } from '@lifestream/chatbot-widget';
+import { on, off } from '@lifestreamdynamics/chatbot-widget';
 
 // Subscribe to events
 on('open', () => {
@@ -1082,7 +1059,7 @@ await expect(page.getByTestId('chatbot-messages')).toContainText('Hello');
 
 ### Prerequisites
 
-- Node.js 18+ or 20+
+- Node.js 20+
 - npm, pnpm, or yarn
 
 ### Setup
@@ -1170,9 +1147,9 @@ chatbot-widget/
 
 - **PII Detection:** Automatic warnings for sensitive information
 - **Privacy Mode:** In-memory storage option (no localStorage)
-- **Consent Management:** GDPR/PIPEDA compliant consent dialogs
+- **Consent Management:** GDPR/PIPEDA compliant consent dialogs (planned)
 - **Data Deletion:** User-initiated history clearing
-- **Compliance Modes:** Built-in support for GDPR and PIPEDA regulations
+- **Compliance Modes:** Built-in support for GDPR and PIPEDA regulations (planned)
 - **Secure Storage:** Session data encrypted in transit (HTTPS required)
 
 ### Best Practices
@@ -1226,7 +1203,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 - Verify browser privacy settings allow storage
 - Try using `sessionStorage: true` option if localStorage is blocked
 - Check for browser extensions blocking storage
-- If using `privacy.enablePrivacyMode: true`, sessions are intentionally in-memory only
+- If using `privacy.enableSessionStorage: true`, sessions use sessionStorage (cleared when tab is closed)
 
 ### PII Warnings Not Showing
 
@@ -1237,15 +1214,15 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 
 ### Consent Dialog Not Appearing
 
-- Verify `privacy.requireConsent: true` is set
+- Verify `privacy.consentRequired: true` is set
 - Check browser console for errors
 - Clear browser storage and reload page
 - Ensure previous consent state isn't cached
 
 ### Pagination Not Working
 
-- Verify backend supports pagination parameters (`page`, `limit`)
-- Check API response includes `pagination` metadata
+- Verify backend supports pagination parameters (`limit`, `offset`)
+- Check API response includes `has_more` boolean field
 - Enable developer mode to see pagination logs
 - Ensure backend returns `has_more` flag correctly
 
@@ -1287,8 +1264,8 @@ npm publish
 
 After publishing to npm, the package is automatically available on:
 
-- **unpkg**: `https://unpkg.com/@lifestream/chatbot-widget/dist/`
-- **jsDelivr**: `https://cdn.jsdelivr.net/npm/@lifestream/chatbot-widget/`
+- **unpkg**: `https://unpkg.com/@lifestreamdynamics/chatbot-widget/dist/`
+- **jsDelivr**: `https://cdn.jsdelivr.net/npm/@lifestreamdynamics/chatbot-widget/`
 
 ### Manual Distribution
 
@@ -1313,7 +1290,9 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## 🔄 Changelog
 
-### Version 2.0.0 (Latest)
+> **Note:** See [CHANGELOG.md](./CHANGELOG.md) for the complete, up-to-date changelog. The section below reflects v2.0.0 changes only.
+
+### Version 2.0.0
 
 **Breaking Changes:**
 - API response field changed from `response` to `message` (backwards compatible in widget)

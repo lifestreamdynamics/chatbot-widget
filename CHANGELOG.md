@@ -5,6 +5,16 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-02-17
+
+### Fixed
+- Documentation accuracy: corrected package scope, default widget position, privacy config keys, pagination API, and content safety fields across README.md
+- Test stability fixes
+
+### Changed
+- Added staleness notice to inline v2.0.0 changelog section in README.md
+- Added `@planned` JSDoc annotations to unimplemented type fields (`disableAnalytics`, `dataRetentionDays`)
+
 ## [2.1.0] - 2025-12-21
 
 ### Added
@@ -188,7 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source maps for all JavaScript files
 
 ### Known Limitations
-- Widget does not expose programmatic API for open/close/send actions (enhancement planned)
+- ~~Widget does not expose programmatic API for open/close/send actions (enhancement planned)~~ (resolved in v2.1.0)
 - No built-in analytics or event tracking (planned for future)
 - No message persistence across page reloads (only session ID persists)
 
@@ -200,6 +210,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (23 items resolved — 2026-02-26)
+
+#### CRITICAL
+- CI now triggers on `master` branch (alongside `main`/`develop`) — CI was not running on production branch
+- `STORAGE_ENABLED` renamed to `PERSISTENT_STORAGE_ENABLED` with corrected semantics — no longer conflates "which storage" vs "whether storage"
+
+#### MAJOR
+- Top-level `sessionStorage` config deprecated with JSDoc notice; `privacy.enableSessionStorage` takes precedence at runtime
+- Singleton state leak on re-initialization: `initLifestreamChatbot()` now cleans up previous instance before creating new one
+- `revokeConsent()` now closes widget UI, clears messages, and emits `close` event via consent revoke callback system
+- `src/index.tsx` now has 28 dedicated tests covering init, cleanup, consent delegation, programmatic API, events, and global exports
+- `disableAnalytics`/`dataRetentionDays` now emit `console.warn()` when passed to `configure()` instead of being silently dropped
+- `configure()` now resets `PERSISTENT_STORAGE_ENABLED` and `CONSENT_GRANTED` to defaults on re-call
+
+#### HIGH
+- Migrated deprecated `onKeyPress` → `onKeyDown` in ChatBot.tsx (React 19 compatibility)
+- `sendMessage()` programmatic API now awaits completion instead of using `setTimeout` race condition
+- `checkHealth()` now uses `new URL('/health', API_URL)` instead of fragile string replace; accepts optional `healthUrl` parameter
+- `getSessionId()` return type unified to `string` across `ChatBotHandle` interface, index.tsx, and service layer
+- SSE stream chunk fragmentation handled: added line accumulation buffer to process only complete lines
+
+#### MEDIUM
+- `on()`/`off()` now validate event names at runtime; invalid names log a warning and return early
+- CI IIFE artifact check added to build verification step
+- CI duplicate test run removed (kept only `npm run test:coverage`)
+- `AlertCircle` dead code removed from `icons.tsx`
+- Console log prefix standardized to `[LifestreamChatbot]` across all files (was `[Chatbot]`, `[Lifestream Chatbot]`)
+- `devLog` no longer emits empty string for falsy data — uses rest parameters
+- `getChatHistory` no longer silently omits `offset=0` or `limit=0`
+- `ChatbotEventCallback`/`ChatbotEventEmitter` unused types removed from `types.ts`
+- Placeholder `expect(true).toBe(true)` tests replaced with real behavioral assertions
+- `checkHealth` error log now uses standardized `[LifestreamChatbot]` prefix
+
+### Technical Debt
+
+<!-- Review cadence: reassess items quarterly. Remove resolved items. Escalate items older than 6 months. -->
+
+(No remaining tracked items — all 18 previously listed items resolved above)
+
+### Planned Features (High Priority)
+- Consent dialog UI: Visual consent gate when `consentRequired: true` — currently only controls storage mode, no UI shown
+- In-widget chat menu: Menu icon with Clear History option (programmatic `clearHistory()` works; in-widget UI is missing)
+- ~~Privacy config unification: Reconcile field names across README, types.ts, and service layer~~ (resolved 2026-02-26 — `privacy.enableSessionStorage` now takes precedence, top-level `sessionStorage` deprecated)
+- ~~Screen reader announcement region: Dedicated `aria-live` region for new assistant messages (WCAG 2.1 AA)~~ (completed 2026-02-26 — messages container has role="log" + aria-live="polite")
+- ~~Package name normalization: Ensure all documentation references `@lifestreamdynamics/chatbot-widget`~~ (completed 2026-02-26)
+
+<!-- Note: Items below are speculative backlog. High Priority items above are active targets. -->
 ### Planned Features
 - Message persistence across page reloads
 - File upload support

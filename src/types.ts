@@ -19,6 +19,7 @@ export interface ChatbotConfig {
   subtitle?: string;
   quickActions?: Array<{ label: string; message: string }>;
   autoOpen?: boolean;
+  /** @deprecated Use `privacy.enableSessionStorage` instead. Will be removed in v3.0.0. */
   sessionStorage?: boolean;
   maxWidth?: string;
   maxHeight?: string;
@@ -26,7 +27,9 @@ export interface ChatbotConfig {
   metadata?: Record<string, any>;
   privacy?: {
     enableSessionStorage?: boolean;
+    /** @planned Not yet implemented. Will disable analytics metadata in future releases. */
     disableAnalytics?: boolean;
+    /** @planned Not yet implemented. Will configure session retention in future releases. */
     dataRetentionDays?: number;
     consentRequired?: boolean;
   };
@@ -99,7 +102,7 @@ export interface ChatBotHandle {
   close: () => void;
   toggle: () => void;
   sendMessage: (text: string) => Promise<void>;
-  getSessionId: () => string | null;
+  getSessionId: () => string;
   isOpen: () => boolean;
 }
 
@@ -116,14 +119,4 @@ export interface ChatbotErrorEvent {
   type: 'api' | 'network' | 'validation';
   message: string;
   details?: unknown;
-}
-
-export type ChatbotEventCallback<T = void> = (data: T) => void;
-
-export interface ChatbotEventEmitter {
-  on(event: 'open', callback: ChatbotEventCallback): void;
-  on(event: 'close', callback: ChatbotEventCallback): void;
-  on(event: 'message', callback: ChatbotEventCallback<ChatbotMessageEvent>): void;
-  on(event: 'error', callback: ChatbotEventCallback<ChatbotErrorEvent>): void;
-  off(event: ChatbotEventName, callback: ChatbotEventCallback<unknown>): void;
 }

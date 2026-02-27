@@ -18,18 +18,33 @@ describe('chatbotService', () => {
   });
 
   describe('configure', () => {
-    it('should configure the service with API credentials', () => {
-      configure('https://api.test.com', 'my-api-key');
-      // Configuration is internal, but we can test it works via sendMessage
-      expect(true).toBe(true);
+    it('should configure the service with API credentials', async () => {
+      configure('https://api.test.com/v1', 'my-api-key');
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        json: async () => ({ success: true, data: { message: 'ok', session_id: 'sess_1', tokens_used: 1 } }),
+      });
+
+      await sendMessage('hello');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.test.com/v1/chat',
+        expect.any(Object)
+      );
     });
 
-    it('should accept privacy configuration options', () => {
+    it('should use in-memory storage when privacy disables storage', () => {
       configure('https://api.test.com', 'my-api-key', false, false, {
-        enableSessionStorage: true,
-        consentRequired: false,
+        enableSessionStorage: false,
       });
-      expect(true).toBe(true);
+
+      const sessionId = getSessionId();
+      expect(sessionId).toMatch(/^sess_/);
+      // Should NOT have called localStorage or sessionStorage
+      expect(window.localStorage.setItem).not.toHaveBeenCalled();
+      expect(window.sessionStorage.setItem).not.toHaveBeenCalled();
     });
   });
 
@@ -63,15 +78,43 @@ describe('chatbotService', () => {
   });
 
   describe('consent management', () => {
-    it('should grant consent', () => {
+    it('should grant consent and migrate session to storage', () => {
+      configure('https://api.test.com', 'my-api-key', false, false, {
+        consentRequired: true,
+      });
+
+      // Generate in-memory session first
+      const sessionId = getSessionId();
+      expect(window.localStorage.setItem).not.toHaveBeenCalled();
+
+      // Grant consent - should migrate to storage
       grantConsent();
-      // No assertion needed - just verifying no error
-      expect(true).toBe(true);
+      expect(window.localStorage.setItem).toHaveBeenCalledWith('chatbot_session_id', sessionId);
     });
 
     it('should revoke consent and clear session', () => {
       revokeConsent();
       expect(window.localStorage.removeItem).toHaveBeenCalled();
+    });
+  });
+
+  describe('privacy warnings', () => {
+    it('should warn when disableAnalytics is passed', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      configure('https://api.test.com', 'my-api-key', false, false, {
+        disableAnalytics: true,
+      });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('disableAnalytics'));
+      warnSpy.mockRestore();
+    });
+
+    it('should warn when dataRetentionDays is passed', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      configure('https://api.test.com', 'my-api-key', false, false, {
+        dataRetentionDays: 30,
+      });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('dataRetentionDays'));
+      warnSpy.mockRestore();
     });
   });
 
@@ -182,6 +225,20 @@ describe('chatbotService', () => {
         expect.any(Object)
       );
     });
+
+    it('should include offset=0 in URL when explicitly set', async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { session_id: '', messages: [] } }),
+      });
+
+      await getChatHistory({ limit: 10, offset: 0 });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('offset=0'),
+        expect.any(Object)
+      );
+    });
   });
 
   describe('checkHealth', () => {
@@ -210,6 +267,29 @@ describe('chatbotService', () => {
 
       const result = await checkHealth();
       expect(result).toBe(false);
+    });
+
+    it('should use proper URL construction for health endpoint', async () => {
+      configure('https://api.example.com/api/v1', 'test-key');
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true });
+
+      await checkHealth();
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.example.com/health',
+        expect.any(Object)
+      );
+    });
+
+    it('should accept custom health URL', async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true });
+
+      await checkHealth('https://custom.example.com/healthz');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://custom.example.com/healthz',
+        expect.any(Object)
+      );
     });
   });
 });

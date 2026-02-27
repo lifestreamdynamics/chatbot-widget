@@ -11,6 +11,7 @@ vi.mock('../../src/services/chatbotService', () => ({
   getChatHistory: vi.fn(),
   getSessionId: vi.fn(),
   configure: vi.fn(),
+  registerConsentRevokedCallback: vi.fn(),
 }));
 
 // Mock react-markdown to avoid complex rendering
@@ -392,7 +393,7 @@ describe('ChatBot', () => {
 
       const input = screen.getByPlaceholderText(/type your message/i);
       fireEvent.change(input, { target: { value: 'Hello!' } });
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
       await waitFor(() => {
         expect(screen.getByText('Hello!')).toBeInTheDocument();
@@ -693,7 +694,7 @@ describe('ChatBot', () => {
 
       const input = screen.getByPlaceholderText(/type your message/i);
       fireEvent.change(input, { target: { value: 'Hello!' } });
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
       await waitFor(() => {
         expect(onEmit).toHaveBeenCalledWith(
@@ -712,7 +713,7 @@ describe('ChatBot', () => {
 
       const input = screen.getByPlaceholderText(/type your message/i);
       fireEvent.change(input, { target: { value: 'Hello!' } });
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
       await waitFor(() => {
         expect(onEmit).toHaveBeenCalledWith(
@@ -737,7 +738,7 @@ describe('ChatBot', () => {
 
       const input = screen.getByPlaceholderText(/type your message/i);
       fireEvent.change(input, { target: { value: 'Hello!' } });
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
       await waitFor(() => {
         expect(onEmit).toHaveBeenCalledWith(
@@ -758,7 +759,7 @@ describe('ChatBot', () => {
 
       const input = screen.getByPlaceholderText(/type your message/i);
       fireEvent.change(input, { target: { value: 'Hello!' } });
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
       await waitFor(() => {
         expect(onEmit).toHaveBeenCalledWith(

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
 
 jobs:
   lint:
@@ -61,9 +61,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
       - name: Run tests with coverage
         run: npm run test:coverage
 
@@ -97,6 +94,7 @@ jobs:
       - name: Verify build artifacts
         run: |
           ls -la dist/
+          test -f dist/lifestream-chatbot.iife.js
           test -f dist/lifestream-chatbot.umd.js
           test -f dist/lifestream-chatbot.es.js
           test -f dist/lifestream-chatbot.css

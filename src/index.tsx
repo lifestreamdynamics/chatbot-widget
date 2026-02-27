@@ -9,6 +9,9 @@ let rootInstance: ReturnType<typeof createRoot> | null = null;
 let containerElement: HTMLDivElement | null = null;
 let chatBotRef = createRef<ChatBotHandle>();
 
+// Runtime guard for JS consumers (TypeScript enforces this at compile time via ChatbotEventName)
+const VALID_EVENTS: Set<string> = new Set(['open', 'close', 'message', 'error']);
+
 // Event Emitter for widget events
 type EventCallback = (data?: ChatbotMessageEvent | ChatbotErrorEvent) => void;
 const eventListeners = new Map<ChatbotEventName, Set<EventCallback>>();
@@ -20,7 +23,7 @@ function emitEvent(event: ChatbotEventName, data?: ChatbotMessageEvent | Chatbot
       try {
         callback(data);
       } catch (error) {
-        console.error(`[Lifestream Chatbot] Error in ${event} event handler:`, error);
+        console.error(`[LifestreamChatbot] Error in ${event} event handler:`, error);
       }
     });
   }
@@ -43,9 +46,21 @@ function removeEventListener(event: ChatbotEventName, callback: EventCallback): 
 export function initLifestreamChatbot(config: ChatbotConfig): () => void {
   // Validate required configuration
   if (!config.apiUrl || !config.apiKey) {
-    console.error('[Lifestream Chatbot] Missing required configuration: apiUrl and apiKey are required');
+    console.error('[LifestreamChatbot] Missing required configuration: apiUrl and apiKey are required');
     return () => {};
   }
+
+  // Clean up previous instance if re-initializing (singleton guard)
+  if (rootInstance) {
+    rootInstance.unmount();
+    rootInstance = null;
+  }
+  if (containerElement && containerElement.parentNode) {
+    containerElement.parentNode.removeChild(containerElement);
+    containerElement = null;
+  }
+  chatBotRef = createRef<ChatBotHandle>();
+  eventListeners.clear();
 
   // Configure the chatbot service with privacy settings
   configure(
@@ -78,9 +93,6 @@ export function initLifestreamChatbot(config: ChatbotConfig): () => void {
     if (config.theme.positionOffset?.x) root.style.setProperty('--chatbot-position-x', config.theme.positionOffset.x);
     if (config.theme.positionOffset?.y) root.style.setProperty('--chatbot-position-y', config.theme.positionOffset.y);
   }
-
-  // Create a new ref for this instance
-  chatBotRef = createRef<ChatBotHandle>();
 
   // Render the widget with ref and event handler
   rootInstance = createRoot(containerElement);
@@ -137,7 +149,7 @@ export function sendMessage(text: string): Promise<void> {
   return chatBotRef.current?.sendMessage(text) ?? Promise.resolve();
 }
 
-export function getSessionId(): string | null {
+export function getSessionId(): string {
   return chatBotRef.current?.getSessionId() ?? getSessionIdService();
 }
 
@@ -147,10 +159,18 @@ export function isOpen(): boolean {
 
 // Event System - exposed functions
 export function on(event: ChatbotEventName, callback: EventCallback): void {
+  if (!VALID_EVENTS.has(event)) {
+    console.warn(`[LifestreamChatbot] Invalid event name: '${event}'. Valid events are: ${[...VALID_EVENTS].join(', ')}`);
+    return;
+  }
   addEventListener(event, callback);
 }
 
 export function off(event: ChatbotEventName, callback: EventCallback): void {
+  if (!VALID_EVENTS.has(event)) {
+    console.warn(`[LifestreamChatbot] Invalid event name: '${event}'. Valid events are: ${[...VALID_EVENTS].join(', ')}`);
+    return;
+  }
   removeEventListener(event, callback);
 }
 

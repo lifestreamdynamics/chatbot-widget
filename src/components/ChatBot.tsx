@@ -57,6 +57,23 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
     });
   }, [emit]);
 
+  // Register consent revoke callback to reset UI state
+  useEffect(() => {
+    chatbotService.registerConsentRevokedCallback(() => {
+      setIsOpen(false);
+      setMessages([]);
+      setInput('');
+      setIsLoading(false);
+      setIsTyping(false);
+      setHistoryOffset(0);
+      setHasMoreHistory(false);
+      emit('close');
+    });
+    return () => {
+      chatbotService.registerConsentRevokedCallback(null);
+    };
+  }, [emit]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -157,7 +174,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
         setHistoryOffset(offset + (historyResponse.data.messages?.length || 0));
       }
     } catch (error) {
-      console.error('[Chatbot] Failed to load history:', error);
+      console.error('[LifestreamChatbot] Failed to load history:', error);
       // On error, ensure we at least have the welcome message
       if (offset === 0 && welcomeMsg) {
         setMessages([welcomeMsg]);
@@ -280,7 +297,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
         }
       }
     } catch (error) {
-      console.error('[Chatbot] Chat error:', error);
+      console.error('[LifestreamChatbot] Chat error:', error);
 
       const errorContent = 'Unable to connect to the chat service. Please check your internet connection and try again.';
       const errorMessage: MessageWithSafety = {
@@ -311,11 +328,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
     },
     sendMessage: async (text: string) => {
       if (text.trim()) {
-        setInput(text);
-        // Use setTimeout to ensure state update before send
-        setTimeout(() => {
-          sendMessageInternal(text.trim());
-        }, 0);
+        await sendMessageInternal(text.trim());
       }
     },
     getSessionId: () => chatbotService.getSessionId(),
@@ -325,7 +338,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
   // Wrapper for button/keyboard triggered sends
   const sendMessage = () => sendMessageInternal();
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -513,7 +526,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Type your message..."
             disabled={isLoading}
             className="chatbot-input"

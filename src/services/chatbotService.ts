@@ -4,19 +4,43 @@ let API_URL = '';
 let API_KEY = '';
 let USE_SESSION_STORAGE = false;
 let ENABLE_DEV_MODE = false;
-let STORAGE_ENABLED = true;
+let PERSISTENT_STORAGE_ENABLED = true;
 let CONSENT_GRANTED = true;
 
-export function configure(apiUrl: string, apiKey: string, sessionStorage = false, devMode = false, privacyConfig?: { enableSessionStorage?: boolean; consentRequired?: boolean }) {
+// Callback for when consent is revoked (set by UI layer)
+let consentRevokedCallback: (() => void) | null = null;
+
+export function registerConsentRevokedCallback(callback: (() => void) | null): void {
+  consentRevokedCallback = callback;
+}
+
+export function configure(apiUrl: string, apiKey: string, sessionStorage = false, devMode = false, privacyConfig?: { enableSessionStorage?: boolean; consentRequired?: boolean; disableAnalytics?: boolean; dataRetentionDays?: number }) {
   API_URL = apiUrl;
   API_KEY = apiKey;
   USE_SESSION_STORAGE = sessionStorage;
   ENABLE_DEV_MODE = devMode;
 
+  // Reset state to defaults on re-configure
+  PERSISTENT_STORAGE_ENABLED = true;
+  CONSENT_GRANTED = true;
+  USE_SESSION_STORAGE = false;
+
   // Privacy configuration
   if (privacyConfig) {
-    STORAGE_ENABLED = privacyConfig.enableSessionStorage !== false;
+    // privacy.enableSessionStorage takes precedence over top-level sessionStorage
+    if (privacyConfig.enableSessionStorage !== undefined) {
+      PERSISTENT_STORAGE_ENABLED = privacyConfig.enableSessionStorage;
+      USE_SESSION_STORAGE = privacyConfig.enableSessionStorage;
+    }
     CONSENT_GRANTED = !privacyConfig.consentRequired;
+
+    // Warn about unimplemented fields
+    if (privacyConfig.disableAnalytics !== undefined) {
+      console.warn('[LifestreamChatbot] privacy.disableAnalytics is not yet implemented and will be ignored.');
+    }
+    if (privacyConfig.dataRetentionDays !== undefined) {
+      console.warn('[LifestreamChatbot] privacy.dataRetentionDays is not yet implemented and will be ignored.');
+    }
   }
 }
 
@@ -32,7 +56,7 @@ export function getSessionId(): string {
   if (typeof window === 'undefined') return '';
 
   // Use in-memory storage if consent not granted or storage disabled
-  if (!CONSENT_GRANTED || !STORAGE_ENABLED) {
+  if (!CONSENT_GRANTED || !PERSISTENT_STORAGE_ENABLED) {
     if (!memorySessionId) {
       memorySessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     }
@@ -62,7 +86,7 @@ export function clearSession(): void {
 export function grantConsent(): void {
   CONSENT_GRANTED = true;
   // Move session from memory to storage if exists
-  if (memorySessionId && STORAGE_ENABLED && typeof window !== 'undefined') {
+  if (memorySessionId && PERSISTENT_STORAGE_ENABLED && typeof window !== 'undefined') {
     const storage = USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
     storage.setItem('chatbot_session_id', memorySessionId);
   }
@@ -71,6 +95,7 @@ export function grantConsent(): void {
 export function revokeConsent(): void {
   CONSENT_GRANTED = false;
   clearSession();
+  consentRevokedCallback?.();
 }
 
 // Helper function to extract rate limit info from headers
@@ -97,9 +122,9 @@ function extractRateLimitInfo(headers: Headers): RateLimitInfo | undefined {
 }
 
 // Helper function to log in dev mode
-function devLog(message: string, data?: any) {
+function devLog(message: string, ...data: any[]) {
   if (ENABLE_DEV_MODE) {
-    console.log(`[Chatbot] ${message}`, data || '');
+    console.log(`[LifestreamChatbot] ${message}`, ...data);
   }
 }
 
@@ -202,7 +227,7 @@ export async function sendMessage(message: string, options?: SendMessageOptions)
     return data;
 
   } catch (error) {
-    console.error('[Chatbot] API Error:', error);
+    console.error('[LifestreamChatbot] API Error:', error);
     return {
       success: false,
       error: 'Network Error',
@@ -267,6 +292,7 @@ async function sendStreamingMessage(
     }
 
     let streamComplete = false;
+    let lineBuffer = '';
     while (!streamComplete) {
       const { done, value } = await reader.read();
       if (done) {
@@ -275,7 +301,15 @@ async function sendStreamingMessage(
       }
 
       const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
+      lineBuffer += chunk;
+
+      // Only process complete lines (terminated by \n)
+      const lastNewline = lineBuffer.lastIndexOf('\n');
+      if (lastNewline === -1) continue;
+
+      const completeData = lineBuffer.substring(0, lastNewline);
+      lineBuffer = lineBuffer.substring(lastNewline + 1);
+      const lines = completeData.split('\n');
 
       for (const line of lines) {
         if (line.startsWith('data: ')) {
@@ -343,7 +377,7 @@ async function sendStreamingMessage(
     };
 
   } catch (error) {
-    console.error('[Chatbot] Streaming Error:', error);
+    console.error('[LifestreamChatbot] Streaming Error:', error);
     return {
       success: false,
       error: 'Network Error',
@@ -370,8 +404,8 @@ export async function getChatHistory(params?: ChatHistoryParams): Promise<ChatHi
 
     // Build query string for pagination
     const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.limit != null) queryParams.append('limit', params.limit.toString());
+    if (params?.offset != null) queryParams.append('offset', params.offset.toString());
 
     const queryString = queryParams.toString();
     const url = `${API_URL}/chat/history/${sessionId}${queryString ? `?${queryString}` : ''}`;
@@ -398,7 +432,7 @@ export async function getChatHistory(params?: ChatHistoryParams): Promise<ChatHi
     return data;
 
   } catch (error) {
-    console.error('[Chatbot] Chat History Error:', error);
+    console.error('[LifestreamChatbot] Chat History Error:', error);
     return {
       success: false,
       error: 'Network error loading history',
@@ -406,15 +440,17 @@ export async function getChatHistory(params?: ChatHistoryParams): Promise<ChatHi
   }
 }
 
-export async function checkHealth(): Promise<boolean> {
+export async function checkHealth(healthUrl?: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL.replace('/api/v1', '')}/health`, {
+    const url = healthUrl || (API_URL ? new URL('/health', API_URL).href : '');
+    if (!url) return false;
+    const response = await fetch(url, {
       method: 'GET',
     });
 
     return response.ok;
   } catch (error) {
-    console.error('Health Check Failed:', error);
+    console.error('[LifestreamChatbot] Health Check Failed:', error);
     return false;
   }
 }
