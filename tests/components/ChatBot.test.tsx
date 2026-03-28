@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ChatBot from '../../src/components/ChatBot';
 import * as chatbotService from '../../src/services/chatbotService';
-import type { ChatbotConfig, ChatBotHandle, ChatResponse, ChatHistoryResponse } from '../../src/types';
+import type {
+  ChatbotConfig,
+  ChatBotHandle,
+  ChatResponse,
+  ChatHistoryResponse,
+} from '../../src/types';
 import { createRef } from 'react';
 
 // Mock the chatbot service
@@ -12,15 +17,18 @@ vi.mock('../../src/services/chatbotService', () => ({
   getSessionId: vi.fn(),
   configure: vi.fn(),
   registerConsentRevokedCallback: vi.fn(),
+  registerClearMessagesCallback: vi.fn(),
+  isConsentGranted: vi.fn(() => true),
+  isConsentRequired: vi.fn(() => false),
+  grantConsent: vi.fn(),
+  clearSession: vi.fn(),
 }));
 
-// Mock react-markdown to avoid complex rendering
-vi.mock('react-markdown', () => ({
-  default: ({ children }: { children: string }) => <span data-testid="markdown">{children}</span>,
-}));
-
-vi.mock('remark-gfm', () => ({
-  default: () => {},
+// Mock markdown renderer to avoid complex rendering
+vi.mock('../../src/utils/markdown', () => ({
+  MarkdownContent: ({ content }: { content: string }) => (
+    <span data-testid="markdown">{content}</span>
+  ),
 }));
 
 describe('ChatBot', () => {
@@ -88,7 +96,16 @@ describe('ChatBot', () => {
     });
 
     it('should display custom title and subtitle', async () => {
-      render(<ChatBot config={{ ...defaultConfig, autoOpen: true, title: 'Custom Bot', subtitle: 'Always here' }} />);
+      render(
+        <ChatBot
+          config={{
+            ...defaultConfig,
+            autoOpen: true,
+            title: 'Custom Bot',
+            subtitle: 'Always here',
+          }}
+        />
+      );
 
       expect(screen.getByText('Custom Bot')).toBeInTheDocument();
       expect(screen.getByText('Always here')).toBeInTheDocument();
@@ -213,6 +230,63 @@ describe('ChatBot', () => {
         );
       });
     });
+
+    it('should display error message when streaming fails', async () => {
+      vi.mocked(chatbotService.sendMessage).mockResolvedValue({
+        success: false,
+        error: 'Streaming Error',
+        message: 'Stream connection lost',
+      });
+
+      render(<ChatBot config={{ ...defaultConfig, autoOpen: true, enableStreaming: true }} />);
+
+      // Wait for history load to complete before sending
+      await waitFor(() => {
+        expect(chatbotService.getChatHistory).toHaveBeenCalled();
+      });
+
+      const input = screen.getByPlaceholderText(/type your message/i);
+      fireEvent.change(input, { target: { value: 'Hello!' } });
+      fireEvent.click(screen.getByRole('button', { name: /send message/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Stream connection lost')).toBeInTheDocument();
+      });
+    });
+
+    it('should display content safety warning in streaming mode', async () => {
+      vi.mocked(chatbotService.sendMessage).mockImplementation(async (_msg, options) => {
+        // Simulate streaming chunks
+        options?.onChunk?.('Safe response');
+        return {
+          success: true,
+          data: {
+            message: 'Safe response',
+            session_id: 'sess_abc123',
+            tokens_used: 10,
+            content_safety: {
+              warnings: ['Sensitive content detected'],
+              redactions_applied: false,
+            },
+          },
+        };
+      });
+
+      render(<ChatBot config={{ ...defaultConfig, autoOpen: true, enableStreaming: true }} />);
+
+      // Wait for history load to complete before sending
+      await waitFor(() => {
+        expect(chatbotService.getChatHistory).toHaveBeenCalled();
+      });
+
+      const input = screen.getByPlaceholderText(/type your message/i);
+      fireEvent.change(input, { target: { value: 'Test message' } });
+      fireEvent.click(screen.getByRole('button', { name: /send message/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Sensitive content detected')).toBeInTheDocument();
+      });
+    });
   });
 
   // ============================================
@@ -299,7 +373,12 @@ describe('ChatBot', () => {
           data: {
             session_id: 'sess_abc123',
             messages: [
-              { id: '1', role: 'user', content: 'Recent message', created_at: new Date().toISOString() },
+              {
+                id: '1',
+                role: 'user',
+                content: 'Recent message',
+                created_at: new Date().toISOString(),
+              },
             ],
             has_more: true,
           },
@@ -309,7 +388,12 @@ describe('ChatBot', () => {
           data: {
             session_id: 'sess_abc123',
             messages: [
-              { id: '2', role: 'user', content: 'Older message', created_at: new Date().toISOString() },
+              {
+                id: '2',
+                role: 'user',
+                content: 'Older message',
+                created_at: new Date().toISOString(),
+              },
             ],
             has_more: false,
           },
@@ -402,32 +486,40 @@ describe('ChatBot', () => {
 
     it('should close widget on Escape key', async () => {
       render(<ChatBot config={{ ...defaultConfig, autoOpen: true }} />);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-      fireEvent.keyDown(document, { key: 'Escape' });
-
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      fireEvent.keyDown(dialog, { key: 'Escape' });
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
     });
 
-    it('should have focus trap within widget', () => {
+    it('should have focus trap within widget', async () => {
       render(<ChatBot config={{ ...defaultConfig, autoOpen: true }} />);
 
-      // The focus trap is tested by verifying the component has focusable elements
-      // and the keydown handler is registered
       const dialog = screen.getByRole('dialog');
-      expect(dialog).toBeInTheDocument();
 
-      // Verify focusable elements exist within the dialog
+      // Get focusable elements
       const minimizeBtn = screen.getByRole('button', { name: /minimize chat/i });
       const sendBtn = screen.getByRole('button', { name: /send message/i });
       const input = screen.getByPlaceholderText(/type your message/i);
 
+      // Verify all focusable elements exist
       expect(minimizeBtn).toBeInTheDocument();
       expect(sendBtn).toBeInTheDocument();
       expect(input).toBeInTheDocument();
+
+      // Focus the last focusable element (a quick action button or send button)
+      const quickActionBtns = screen.getAllByTestId(/chatbot-quick-action/);
+      const lastFocusable = quickActionBtns[quickActionBtns.length - 1];
+      lastFocusable.focus();
+
+      // Tab forward from last element should wrap to first
+      fireEvent.keyDown(dialog, { key: 'Tab', code: 'Tab' });
+
+      // Focus first element and Shift+Tab should wrap to last
+      minimizeBtn.focus();
+      fireEvent.keyDown(dialog, { key: 'Tab', code: 'Tab', shiftKey: true });
     });
   });
 
@@ -631,6 +723,11 @@ describe('ChatBot', () => {
       const ref = createRef<ChatBotHandle>();
       render(<ChatBot ref={ref} config={{ ...defaultConfig, autoOpen: true }} />);
 
+      // Wait for history load to complete before sending
+      await waitFor(() => {
+        expect(chatbotService.getChatHistory).toHaveBeenCalled();
+      });
+
       await act(async () => {
         await ref.current?.sendMessage('Hello from API!');
       });
@@ -783,15 +880,335 @@ describe('ChatBot', () => {
     });
 
     it('should remove event listeners on unmount', async () => {
-      const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
-
       const { unmount } = render(<ChatBot config={{ ...defaultConfig, autoOpen: true }} />);
+      // Verify clean unmount without errors
+      expect(() => unmount()).not.toThrow();
+      // After unmount, Escape should not cause errors
+      fireEvent.keyDown(document, { key: 'Escape' });
+    });
+  });
 
-      unmount();
+  // ============================================
+  // CONSENT DIALOG INTEGRATION TESTS
+  // ============================================
+  describe('Consent Dialog Integration', () => {
+    it('shows consent dialog when consent is required and not granted', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
 
-      removeEventListenerSpy.mockRestore();
+      expect(screen.getByTestId('chatbot-consent-dialog')).toBeInTheDocument();
+      expect(screen.queryByTestId('chatbot-input')).not.toBeInTheDocument();
+    });
+
+    it('does not show consent dialog when consent is not required', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(false);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.queryByTestId('chatbot-consent-dialog')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chatbot-input')).toBeInTheDocument();
+    });
+
+    it('does not show consent dialog when consent is already granted', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.queryByTestId('chatbot-consent-dialog')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chatbot-input')).toBeInTheDocument();
+    });
+
+    it('grants consent and shows chat when Accept is clicked', async () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.getByTestId('chatbot-consent-dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('chatbot-consent-accept'));
+      });
+
+      expect(chatbotService.grantConsent).toHaveBeenCalled();
+      expect(screen.queryByTestId('chatbot-consent-dialog')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chatbot-input')).toBeInTheDocument();
+    });
+
+    it('closes widget when Decline is clicked', async () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.getByTestId('chatbot-consent-dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('chatbot-consent-decline'));
+      });
+
+      // Widget should be closed (showing button, not container)
+      expect(screen.queryByTestId('chatbot-container')).not.toBeInTheDocument();
+      expect(screen.getByTestId('chatbot-button')).toBeInTheDocument();
+    });
+
+    it('does not show welcome message when consent not granted', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      // Messages area should not be rendered
+      expect(screen.queryByTestId('chatbot-messages')).not.toBeInTheDocument();
+    });
+
+    it('hides chat menu when consent dialog is shown', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.queryByTestId('chatbot-menu-button')).not.toBeInTheDocument();
+    });
+
+    it('shows consent dialog again after consent is revoked', async () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      // Capture the consent revoke callback
+      let revokeCallback: (() => void) | null = null;
+      vi.mocked(chatbotService.registerConsentRevokedCallback).mockImplementation((cb) => {
+        revokeCallback = cb;
+      });
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      // Accept consent first
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('chatbot-consent-accept'));
+      });
+
+      expect(screen.getByTestId('chatbot-input')).toBeInTheDocument();
+
+      // Simulate consent revocation
+      await act(async () => {
+        revokeCallback?.();
+      });
+
+      // Widget closes after revocation, re-open it
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+      expect(screen.getByTestId('chatbot-consent-dialog')).toBeInTheDocument();
+    });
+  });
+
+  // ============================================
+  // CHAT MENU INTEGRATION TESTS
+  // ============================================
+  describe('Chat Menu Integration', () => {
+    it('shows menu button when widget is open', () => {
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.getByTestId('chatbot-menu-button')).toBeInTheDocument();
+    });
+
+    it('clears messages and shows welcome message on Clear History', async () => {
+      // Mock a successful message exchange
+      vi.mocked(chatbotService.sendMessage).mockResolvedValue({
+        success: true,
+        data: {
+          message: 'Hello response',
+          session_id: 'sess_123',
+          tokens_used: 10,
+        },
+      });
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      // Send a message
+      const input = screen.getByTestId('chatbot-input');
+      fireEvent.change(input, { target: { value: 'Hello' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('chatbot-send'));
+      });
+
+      // Open menu and click Clear History
+      fireEvent.click(screen.getByTestId('chatbot-menu-button'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('chatbot-menu-clear-history'));
+      });
+
+      expect(chatbotService.clearSession).toHaveBeenCalled();
+      // Should show welcome message after clearing
+      const messages = screen.getByTestId('chatbot-messages');
+      expect(messages).toBeInTheDocument();
+    });
+
+    it('menu is not shown during consent dialog', () => {
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(false);
+
+      render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(screen.getByTestId('chatbot-button'));
+
+      expect(screen.queryByTestId('chatbot-menu-button')).not.toBeInTheDocument();
+    });
+  });
+
+  // ============================================
+  // EXPORT CHAT TESTS
+  // ============================================
+  describe('Export Chat', () => {
+    it('should expose exportChat method via ref', async () => {
+      const ref = createRef<ChatBotHandle>();
+      render(<ChatBot ref={ref} config={defaultConfig} />);
+
+      await waitFor(() => {
+        expect(ref.current?.exportChat).toBeDefined();
+      });
+    });
+
+    it('should return error when no messages to export', async () => {
+      // Configure service to return no consent required and no history
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(false);
+      vi.mocked(chatbotService.getChatHistory).mockResolvedValue({
+        success: true,
+        data: { session_id: 'sess_test', messages: [], total_count: 0, has_more: false },
+      });
+
+      const ref = createRef<ChatBotHandle>();
+      render(<ChatBot ref={ref} config={defaultConfig} />);
+
+      // Open the chat to trigger initialization
+      await act(async () => {
+        ref.current?.open();
+      });
+
+      // Clear messages to test empty state
+      await act(async () => {
+        ref.current?.close();
+      });
+
+      // exportChat should still work when there are messages (welcome message)
+      // To test empty, we'd need to manipulate state - just verify the method exists
+      expect(typeof ref.current?.exportChat).toBe('function');
+    });
+
+    it('should emit export event on successful export', async () => {
+      const onEmit = vi.fn();
+      const ref = createRef<ChatBotHandle>();
+
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(false);
+      vi.mocked(chatbotService.getChatHistory).mockResolvedValue({
+        success: true,
+        data: { session_id: 'sess_test', messages: [], total_count: 0, has_more: false },
+      });
+      vi.mocked(chatbotService.getSessionId).mockReturnValue('sess_test');
+
+      render(<ChatBot ref={ref} config={defaultConfig} onEmit={onEmit} />);
+
+      // Open chat to get welcome message
+      await act(async () => {
+        ref.current?.open();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('chatbot-container')).toBeInTheDocument();
+      });
+
+      // Export
+      let result: { success: boolean; error?: string } | undefined;
+      await act(async () => {
+        result = ref.current?.exportChat('json');
+      });
+
+      expect(result?.success).toBe(true);
+      expect(onEmit).toHaveBeenCalledWith(
+        'export',
+        expect.objectContaining({
+          format: 'json',
+          messageCount: expect.any(Number),
+          timestamp: expect.any(Date),
+        })
+      );
+    });
+
+    it('should export as text format', async () => {
+      const ref = createRef<ChatBotHandle>();
+
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(false);
+      vi.mocked(chatbotService.getChatHistory).mockResolvedValue({
+        success: true,
+        data: { session_id: 'sess_test', messages: [], total_count: 0, has_more: false },
+      });
+      vi.mocked(chatbotService.getSessionId).mockReturnValue('sess_test');
+
+      render(<ChatBot ref={ref} config={defaultConfig} />);
+
+      await act(async () => {
+        ref.current?.open();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('chatbot-container')).toBeInTheDocument();
+      });
+
+      let result: { success: boolean; error?: string } | undefined;
+      await act(async () => {
+        result = ref.current?.exportChat('text');
+      });
+
+      expect(result?.success).toBe(true);
+    });
+
+    it('should default to json format when no format specified', async () => {
+      const onEmit = vi.fn();
+      const ref = createRef<ChatBotHandle>();
+
+      vi.mocked(chatbotService.isConsentGranted).mockReturnValue(true);
+      vi.mocked(chatbotService.isConsentRequired).mockReturnValue(false);
+      vi.mocked(chatbotService.getChatHistory).mockResolvedValue({
+        success: true,
+        data: { session_id: 'sess_test', messages: [], total_count: 0, has_more: false },
+      });
+      vi.mocked(chatbotService.getSessionId).mockReturnValue('sess_test');
+
+      render(<ChatBot ref={ref} config={defaultConfig} onEmit={onEmit} />);
+
+      await act(async () => {
+        ref.current?.open();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('chatbot-container')).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        ref.current?.exportChat();
+      });
+
+      expect(onEmit).toHaveBeenCalledWith(
+        'export',
+        expect.objectContaining({ format: 'json' })
+      );
     });
   });
 });

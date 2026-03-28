@@ -5,6 +5,42 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-27
+
+### Added
+- **Conversation Export:** Export chat history as JSON or plain text
+  - "Export as JSON" and "Export as Text" options in the chat menu
+  - Programmatic API: `exportChat('json')` / `exportChat('text')`
+  - Emits `export` event with format, message count, and timestamp
+  - Download triggered via Blob + URL.createObjectURL
+- **Dark/Light Mode Toggle:** Theme switching with OS-following support
+  - `theme.mode` config option: `'dark'` (default), `'light'`, `'auto'`
+  - `auto` mode follows `prefers-color-scheme` media query with live updates
+  - Toggle button in chat menu (Sun/Moon icons with separator)
+  - Programmatic API: `setThemeMode(mode)`, `getThemeMode()`
+  - Emits `themeChange` event with mode and resolvedMode
+  - User color overrides (e.g., `primaryColor`) always take priority over mode defaults
+  - Light mode colors: accessible WCAG AA compliant palette
+  - CSS scoped via `data-chatbot-theme` attribute on container (no global leaks)
+
+### Changed
+- **Bundle Size Reduction:** Replaced `react-markdown` + `remark-gfm` with `marked` + custom sanitizer
+  - IIFE + CSS gzipped: **~111 KB → ~84 KB** (25% reduction)
+  - Custom DOM-based HTML sanitizer with allowlisted safe tags
+  - All markdown features preserved: GFM tables, strikethrough, code blocks, links
+  - Links still open in new tabs with `rel="noopener noreferrer"`
+- Theme color overrides now applied on container element instead of `:root` (prevents global CSS leaks)
+
+### Technical Details
+- New file: `src/utils/markdown.tsx` — lightweight MarkdownContent component + sanitizeHtml
+- New icons: Download, Sun, Moon (Lucide-style SVGs)
+- New types: `ChatbotExportEvent`, `ChatbotThemeChangeEvent`
+- New events: `export`, `themeChange`
+- New config: `theme.mode`
+- New API methods: `exportChat()`, `setThemeMode()`, `getThemeMode()`
+- Test count: 167 → 230 (63 new tests)
+- Dependencies: Removed `react-markdown`, `remark-gfm` (81 transitive deps); Added `marked` (0 transitive deps)
+
 ## [2.1.1] - 2026-02-17
 
 ### Fixed
@@ -208,7 +244,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Safe markdown rendering with react-markdown
 - API key validation on initialization
 
-## [Unreleased]
+## [2.2.0] - 2026-03-27
+
+### Added
+- **Consent Dialog UI:** Visual consent gate when `privacy.consentRequired: true`
+  - Shield icon with privacy explanation and Accept/Decline buttons
+  - Shown inside the chat window (header remains visible for minimize)
+  - Accept grants consent and enables full chat functionality
+  - Decline closes the widget
+  - Re-shown after `revokeConsent()` is called
+  - Fully accessible: `role="alertdialog"`, auto-focus, keyboard navigation
+  - Test IDs: `chatbot-consent-dialog`, `chatbot-consent-accept`, `chatbot-consent-decline`
+- **In-Widget Chat Menu:** Three-dot menu in the chat header
+  - "Clear History" option clears messages, session data, and resets to welcome message
+  - Click-outside and Escape key to close
+  - Fully accessible: `aria-haspopup`, `role="menu"`, `role="menuitem"`
+  - Test IDs: `chatbot-menu-button`, `chatbot-menu-dropdown`, `chatbot-menu-clear-history`
+  - Hidden when consent dialog is displayed
+- **Consent state getters:** `isConsentGranted()` and `isConsentRequired()` exported from service layer
+
+### Fixed
+- `clearHistory()` now clears displayed messages in the UI (previously only cleared storage)
+- Programmatic `clearHistory()` via public API now syncs with visible chat state via `registerClearMessagesCallback`
 
 ### Fixed (23 items resolved — 2026-02-26)
 
@@ -250,8 +307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 (No remaining tracked items — all 18 previously listed items resolved above)
 
 ### Planned Features (High Priority)
-- Consent dialog UI: Visual consent gate when `consentRequired: true` — currently only controls storage mode, no UI shown
-- In-widget chat menu: Menu icon with Clear History option (programmatic `clearHistory()` works; in-widget UI is missing)
+- ~~Consent dialog UI: Visual consent gate when `consentRequired: true`~~ (completed 2026-03-27 — shows consent dialog inside chat window with Accept/Decline)
+- ~~In-widget chat menu: Menu icon with Clear History option~~ (completed 2026-03-27 — three-dot menu in header with Clear History)
 - ~~Privacy config unification: Reconcile field names across README, types.ts, and service layer~~ (resolved 2026-02-26 — `privacy.enableSessionStorage` now takes precedence, top-level `sessionStorage` deprecated)
 - ~~Screen reader announcement region: Dedicated `aria-live` region for new assistant messages (WCAG 2.1 AA)~~ (completed 2026-02-26 — messages container has role="log" + aria-live="polite")
 - ~~Package name normalization: Ensure all documentation references `@lifestreamdynamics/chatbot-widget`~~ (completed 2026-02-26)
@@ -266,11 +323,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom CSS class injection
 - Message read receipts
 - Rich media support (images, videos, buttons)
-- Conversation export functionality
-- Dark/light mode toggle
 
 ### Future Enhancements
-- Further reduce bundle size (<100KB gzipped target) - currently ~111KB
+- Further reduce bundle size (<100KB gzipped target) - currently ~84KB
 - Lazy load markdown renderer
 - Virtual scrolling for long conversations
 - Offline mode with queue
@@ -286,6 +341,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **2.3.0** (2026-03-27) - Conversation Export, Dark/Light Mode, Bundle Size Reduction
+- **2.2.0** (2026-03-27) - Consent Dialog UI, In-Widget Chat Menu, 23 bug fixes
 - **2.1.0** (2025-12-21) - Programmatic API, event system, full accessibility (WCAG 2.1 AA)
 - **2.0.1** (2025-10-19) - Critical bug fixes and bundle optimization
 - **2.0.0** (2025-10-18) - Major release with privacy controls, content safety, and pagination

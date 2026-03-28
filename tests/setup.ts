@@ -56,7 +56,7 @@ const localStorageMock = {
   length: 0,
   key: vi.fn(),
 };
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+Object.defineProperty(window, 'localStorage', { value: localStorageMock, configurable: true, writable: true });
 
 // Mock sessionStorage
 const sessionStorageMock = {
@@ -67,7 +67,11 @@ const sessionStorageMock = {
   length: 0,
   key: vi.fn(),
 };
-Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock });
+Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock, configurable: true, writable: true });
+
+// Mock URL.createObjectURL and revokeObjectURL for export tests
+global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+global.URL.revokeObjectURL = vi.fn();
 
 // Reset mocks before each test
 beforeEach(() => {

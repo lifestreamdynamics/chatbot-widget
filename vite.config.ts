@@ -26,10 +26,16 @@ export default defineConfig({
     terserOptions: {
       compress: {
         drop_console: true,
-        drop_debugger: true
-      }
+        drop_debugger: true,
+        passes: 2,
+        pure_getters: true,
+      },
+      format: {
+        comments: false,
+      },
     },
-    sourcemap: true
+    sourcemap: true,
+    emptyOutDir: false
   },
   resolve: {
     alias: {

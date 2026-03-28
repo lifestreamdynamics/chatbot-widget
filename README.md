@@ -21,6 +21,8 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - [Programmatic API](#-programmatic-api) 🆕 **New in v2.1.0**
 - [Event System](#-event-system) 🆕 **New in v2.1.0**
 - [Testing](#-testing) 🆕 **New in v2.1.0**
+- [Conversation Export](#-conversation-export) 🆕 **New in v2.3.0**
+- [Dark/Light Mode](#-darklight-mode) 🆕 **New in v2.3.0**
 - [Development](#️-development)
 - [Browser Support](#-browser-support)
 - [Accessibility](#-accessibility)
@@ -46,6 +48,8 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - **🎮 Programmatic API** - Control widget state with open(), close(), sendMessage(), and more
 - **📡 Event System** - Subscribe to widget events (open, close, message, error)
 - **♿ Full Accessibility** - WCAG 2.1 AA compliant with keyboard navigation and screen reader support
+- **📥 Conversation Export** - Export chat history as JSON or plain text file
+- **🌗 Dark/Light Mode** - Toggle between dark and light themes, or auto-follow OS preference
 - **🧪 E2E Testing Ready** - Stable data-testid attributes for reliable test automation
 - **📦 TypeScript Support** - Full type definitions included
 - **⚙️ Small Bundle** - Optimized for fast loading (~111KB gzipped)
@@ -297,7 +301,8 @@ theme: {
   positionOffset: {
     x: '1.5rem',                 // Horizontal offset from edge
     y: '1.5rem'                  // Vertical offset from edge
-  }
+  },
+  mode: 'dark',                   // Theme mode: 'dark', 'light', or 'auto'
 }
 ```
 
@@ -307,6 +312,11 @@ theme: {
 - `top-left`
 - `top-right`
 
+**Mode Options:**
+- `dark` (default) - Dark color scheme
+- `light` - Light color scheme
+- `auto` - Follows operating system preference (prefers-color-scheme)
+
 ### Privacy Options
 
 ```typescript
@@ -315,7 +325,6 @@ privacy: {
   consentRequired: false,          // Require explicit user consent before chatting
   disableAnalytics: false,         // (planned — not yet active)
   dataRetentionDays: undefined,    // (planned — not yet active)
-  // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
 }
 ```
 
@@ -360,7 +369,6 @@ initLifestreamChatbot({
   privacy: {
     enableSessionStorage: false,
     consentRequired: true,
-    // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
   },
 
   // Metadata for analytics
@@ -617,32 +625,32 @@ privacy: {
 
 ### Consent Management
 
-> **Note:** The visual consent dialog UI is a planned feature. Currently, setting `consentRequired: true` enables in-memory storage mode (no localStorage). A visual consent screen is on the roadmap.
-
-Require explicit user consent before enabling the chatbot:
+When `consentRequired: true`, the widget displays a built-in consent dialog inside the chat window. The dialog explains data storage and provides Accept and Decline options.
 
 ```javascript
 privacy: {
   consentRequired: true,
-  // Note: Consent dialog UI and compliance modes (GDPR/PIPEDA) are planned features
 }
 ```
 
 **Consent Behavior:**
-- When `consentRequired: true`, the widget uses in-memory storage only until consent is granted programmatically
-- Use `grantConsent()` / `revokeConsent()` to manage consent state from your own UI
-- Persistent consent state (stored separately from chat data)
+- When `consentRequired: true`, a consent dialog appears when the chat window is opened
+- Clicking **Accept** grants consent and enables full chat functionality
+- Clicking **Decline** closes the chat window
+- Before consent is granted, data is stored in memory only (no localStorage/sessionStorage)
+- After `revokeConsent()`, the consent dialog is shown again on next open
+- You can also use `grantConsent()` / `revokeConsent()` programmatically for custom flows
 
 **GDPR / PIPEDA Compliance:**
 
-> **Note:** Built-in GDPR/PIPEDA compliance modes are planned features. Currently use `consentRequired: true` with your own consent UI and programmatic `grantConsent()` / `revokeConsent()` calls.
+The built-in consent dialog satisfies the explicit consent requirement for GDPR and PIPEDA. For additional compliance needs, combine with your own consent management:
 
 ```javascript
 privacy: {
   consentRequired: true,
 }
 
-// Grant consent after user accepts your custom dialog
+// Or grant consent programmatically from your own UI
 grantConsent();
 ```
 
@@ -650,7 +658,8 @@ grantConsent();
 
 Users can delete their conversation history at any time:
 
-> **Note:** The in-widget menu UI is a planned feature. The `clearHistory()` function works programmatically. A menu icon in the chat header is on the roadmap.
+**Via In-Widget Menu:**
+Click the three-dot menu icon (⋮) in the chat header and select "Clear History". This clears all messages and resets the conversation.
 
 **Programmatically:**
 ```javascript
@@ -670,7 +679,6 @@ clearHistory();
 2. **Require Consent in Regulated Industries:**
    ```javascript
    privacy: { consentRequired: true }
-   // Note: GDPR/PIPEDA compliance modes are planned features
    ```
 
 3. **Allow Data Deletion (Programmatic):**
@@ -755,7 +763,7 @@ initLifestreamChatbot({
 
 **Rate Limit Information:**
 ```
-[Chatbot Widget] Rate Limit Status:
+[LifestreamChatbot] Rate Limit Status:
   • Limit: 100 requests
   • Remaining: 95 requests
   • Reset: 2025-01-15T11:00:00.000Z
@@ -763,29 +771,29 @@ initLifestreamChatbot({
 
 **Token Usage:**
 ```
-[Chatbot Widget] Tokens used: 45
+[LifestreamChatbot] Tokens used: 45
 ```
 
 **API Requests:**
 ```
-[Chatbot Widget] Sending message to API...
-[Chatbot Widget] API Response received
+[LifestreamChatbot] Sending message to API...
+[LifestreamChatbot] API Response received
 ```
 
 **Content Safety Warnings:**
 ```
-[Chatbot Widget] PII detected: Email Address, Phone Number
+[LifestreamChatbot] PII detected: Email Address, Phone Number
 ```
 
 **Session Information:**
 ```
-[Chatbot Widget] Session ID: sess_1234567890_abc123
-[Chatbot Widget] Privacy mode: enabled
+[LifestreamChatbot] Session ID: sess_1234567890_abc123
+[LifestreamChatbot] Privacy mode: enabled
 ```
 
 **Errors and Debugging:**
 ```
-[Chatbot Widget] Error: Network timeout after 30s
+[LifestreamChatbot] Error: Network timeout after 30s
 ```
 
 ### Use Cases
@@ -831,10 +839,11 @@ revokeConsent();
 ```
 
 **Effects:**
+- Closes the chat widget and clears displayed messages
 - Switches to in-memory session storage (new session ID generated)
 - Previously stored session ID is removed from browser storage
-- Chat widget remains functional (UI is not disabled)
-- Note: UI-level consent gating is a planned feature — currently `revokeConsent()` only affects the storage layer
+- If `consentRequired: true`, the consent dialog is shown again on next open
+- Emits a `close` event
 
 ### Data Management
 
@@ -943,6 +952,13 @@ const sessionId = getSessionId(); // 'sess_abc123' or null
 if (isOpen()) {
   console.log('Chat is open');
 }
+
+// Export chat history
+exportChat('json');
+
+// Theme control
+setThemeMode('light');
+getThemeMode();
 ```
 
 ### Global Access (IIFE/UMD)
@@ -966,6 +982,10 @@ When using the script tag version, methods are available on `window.LifestreamCh
   document.getElementById('send-greeting').addEventListener('click', () => {
     LifestreamChatbot.sendMessage('Hi, I need help!');
   });
+
+  LifestreamChatbot.exportChat('json');
+  LifestreamChatbot.setThemeMode('light');
+  LifestreamChatbot.getThemeMode();
 </script>
 ```
 
@@ -981,6 +1001,8 @@ Subscribe to widget events for deeper integration with your application.
 | `close` | - | Widget closed/minimized |
 | `message` | `{ role, content, timestamp }` | Message sent or received |
 | `error` | `{ type, message, details }` | Error occurred |
+| `export` | `{ format, messageCount, timestamp }` | Chat exported |
+| `themeChange` | `{ mode, resolvedMode }` | Theme mode changed |
 
 ### Usage
 
@@ -1045,6 +1067,9 @@ The widget includes `data-testid` attributes for reliable E2E testing:
 | `data-testid="chatbot-input"` | Message input field |
 | `data-testid="chatbot-send"` | Send button |
 | `data-testid="chatbot-quick-action-0"` | First quick action (0-indexed) |
+| `data-testid="chatbot-menu-export-json"` | Export as JSON menu item |
+| `data-testid="chatbot-menu-export-text"` | Export as Text menu item |
+| `data-testid="chatbot-menu-theme-toggle"` | Theme toggle menu item |
 
 ### Playwright Example
 
@@ -1053,6 +1078,128 @@ await page.getByTestId('chatbot-button').click();
 await page.getByTestId('chatbot-input').fill('Hello');
 await page.getByTestId('chatbot-send').click();
 await expect(page.getByTestId('chatbot-messages')).toContainText('Hello');
+```
+
+## 📥 Conversation Export
+
+Export chat history as JSON or plain text.
+
+### Via In-Widget Menu
+
+Click the three-dot menu icon (⋮) in the chat header and select "Export as JSON" or "Export as Text".
+
+### Programmatic Export
+
+```javascript
+import { exportChat } from '@lifestreamdynamics/chatbot-widget';
+
+// Export as JSON (default)
+const result = exportChat('json');
+
+// Export as plain text
+const result = exportChat('text');
+```
+
+### Export Formats
+
+**JSON:**
+```json
+{
+  "exportedAt": "2026-03-27T15:30:00.000Z",
+  "sessionId": "sess_abc123",
+  "messageCount": 5,
+  "messages": [
+    { "role": "assistant", "content": "Hello!", "timestamp": "2026-03-27T15:00:00.000Z" },
+    { "role": "user", "content": "Hi there", "timestamp": "2026-03-27T15:00:05.000Z" }
+  ]
+}
+```
+
+**Plain Text:**
+```
+[3/27/2026, 3:00:00 PM] Assistant:
+Hello!
+
+[3/27/2026, 3:00:05 PM] You:
+Hi there
+```
+
+### Global Access (IIFE/UMD)
+
+```html
+<script>
+  LifestreamChatbot.exportChat('json');
+</script>
+```
+
+## 🌗 Dark/Light Mode
+
+The widget supports dark and light color schemes, with an option to auto-follow the operating system preference.
+
+### Configuration
+
+```javascript
+initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  theme: {
+    mode: 'dark',  // 'dark' | 'light' | 'auto'
+  }
+});
+```
+
+| Mode | Description |
+|------|-------------|
+| `dark` (default) | Dark color scheme |
+| `light` | Light color scheme |
+| `auto` | Follows OS preference (`prefers-color-scheme`) |
+
+### In-Widget Toggle
+
+Users can switch themes via the three-dot menu in the chat header. The toggle switches between dark and light modes.
+
+### Programmatic Control
+
+```javascript
+import { setThemeMode, getThemeMode } from '@lifestreamdynamics/chatbot-widget';
+
+// Set theme mode
+setThemeMode('light');
+setThemeMode('dark');
+setThemeMode('auto');
+
+// Get current theme mode
+const mode = getThemeMode(); // 'dark', 'light', or 'auto'
+```
+
+### Theme Change Events
+
+```javascript
+import { on } from '@lifestreamdynamics/chatbot-widget';
+
+on('themeChange', (event) => {
+  console.log(`Theme: ${event.mode}, Resolved: ${event.resolvedMode}`);
+});
+```
+
+### Color Overrides
+
+User-specified theme colors always take priority over mode defaults:
+
+```javascript
+theme: {
+  mode: 'light',
+  primaryColor: '#ff6600',  // This overrides the light mode default
+}
+```
+
+### Global Access (IIFE/UMD)
+
+```html
+<script>
+  LifestreamChatbot.setThemeMode('light');
+  LifestreamChatbot.getThemeMode();
+</script>
 ```
 
 ## 🛠️ Development
@@ -1092,7 +1239,8 @@ chatbot-widget/
 │   │   └── chatbotService.ts    # API service layer
 │   ├── utils/
 │   │   ├── cn.ts                # Class name utility
-│   │   └── icons.tsx            # Inline SVG icons
+│   │   ├── icons.tsx            # Inline SVG icons
+│   │   └── markdown.tsx         # Lightweight markdown renderer
 │   ├── ChatbotWidget.tsx        # Widget wrapper
 │   ├── index.tsx                # Entry point & initialization
 │   ├── styles.css               # Widget styles
@@ -1112,10 +1260,10 @@ chatbot-widget/
 
 | File | Uncompressed | Gzipped |
 |------|-------------|---------|
-| `lifestream-chatbot.css` | 9 KB | 2 KB |
-| `lifestream-chatbot.iife.js` | 361 KB | 109 KB |
-| `lifestream-chatbot.es.js` | 961 KB | 179 KB |
-| **Total (IIFE + CSS)** | **370 KB** | **~111 KB** |
+| `lifestream-chatbot.css` | 14 KB | 3 KB |
+| `lifestream-chatbot.iife.js` | 262 KB | 81 KB |
+| `lifestream-chatbot.es.js` | 677 KB | 125 KB |
+| **Total (IIFE + CSS)** | **276 KB** | **~84 KB** |
 
 ## 🌐 Browser Support
 
@@ -1147,9 +1295,9 @@ chatbot-widget/
 
 - **PII Detection:** Automatic warnings for sensitive information
 - **Privacy Mode:** In-memory storage option (no localStorage)
-- **Consent Management:** GDPR/PIPEDA compliant consent dialogs (planned)
-- **Data Deletion:** User-initiated history clearing
-- **Compliance Modes:** Built-in support for GDPR and PIPEDA regulations (planned)
+- **Consent Management:** Built-in consent dialog with GDPR/PIPEDA support
+- **Data Deletion:** User-initiated history clearing via in-widget menu or programmatic API
+- **Compliance Modes:** Consent-gated storage with in-memory fallback
 - **Secure Storage:** Session data encrypted in transit (HTTPS required)
 
 ### Best Practices
@@ -1214,10 +1362,11 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 
 ### Consent Dialog Not Appearing
 
-- Verify `privacy.consentRequired: true` is set
-- Check browser console for errors
-- Clear browser storage and reload page
-- Ensure previous consent state isn't cached
+- Verify `privacy.consentRequired: true` is set in configuration
+- The consent dialog appears inside the chat window when opened — click the chat button first
+- If consent was previously granted, the dialog won't appear — call `revokeConsent()` to reset
+- Check browser console for `[LifestreamChatbot]` errors
+- Ensure the widget is initialized with `initLifestreamChatbot()` before opening
 
 ### Pagination Not Working
 
@@ -1231,7 +1380,20 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 - Verify `enableDevMode: true` is set in configuration
 - Check browser console is open
 - Ensure console logging isn't filtered or disabled
-- Look for `[Chatbot Widget]` prefix in logs
+- Look for `[LifestreamChatbot]` prefix in logs
+
+### Export Not Working
+
+- Ensure the chat has at least one message before exporting
+- Check browser console for `[LifestreamChatbot]` errors
+- Verify your browser allows file downloads (not blocked by popup blocker)
+
+### Theme Not Switching
+
+- Verify `theme.mode` is set to `'dark'`, `'light'`, or `'auto'`
+- For `auto` mode, check your OS dark mode setting
+- Custom color overrides (e.g., `primaryColor`) always take priority over mode defaults
+- Call `setThemeMode()` programmatically to switch after initialization
 
 ## 📚 Examples
 

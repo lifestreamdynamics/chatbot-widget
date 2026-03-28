@@ -98,6 +98,7 @@ jobs:
           test -f dist/lifestream-chatbot.umd.js
           test -f dist/lifestream-chatbot.es.js
           test -f dist/lifestream-chatbot.css
+          test -f dist/index.d.ts
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

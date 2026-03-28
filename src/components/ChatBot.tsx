@@ -2,20 +2,40 @@ import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallba
 import { MessageCircle, Minus, Send, Sparkles, Bot } from '../utils/icons';
 import { cn } from '../utils/cn';
 import * as chatbotService from '../services/chatbotService';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Message, ChatbotConfig, ContentSafetyWarning, ChatBotHandle, ChatbotEventName, ChatbotMessageEvent, ChatbotErrorEvent } from '../types';
+import { MarkdownContent } from '../utils/markdown';
+import ConsentDialog from './ConsentDialog';
+import ChatMenu from './ChatMenu';
+import {
+  Message,
+  ChatbotConfig,
+  ContentSafetyWarning,
+  ChatBotHandle,
+  ChatbotEventName,
+  ChatbotMessageEvent,
+  ChatbotErrorEvent,
+  ChatbotExportEvent,
+  ChatbotThemeChangeEvent,
+} from '../types';
 
 interface ChatBotProps {
   config: ChatbotConfig;
-  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => void;
+  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent | ChatbotExportEvent | ChatbotThemeChangeEvent) => void;
+  themeMode?: 'dark' | 'light';
+  onThemeChange?: () => void;
+  onSetThemeMode?: (mode: 'dark' | 'light' | 'auto') => void;
 }
 
 interface MessageWithSafety extends Message {
   contentSafety?: ContentSafetyWarning;
 }
 
-const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref) => {
+let _messageIdCounter = 0;
+const nextMessageId = (prefix: string) => `${prefix}-${++_messageIdCounter}`;
+
+const DEFAULT_WELCOME_MESSAGE =
+  "Hi! I'm here to help you learn about Lifestream Dynamics IT consultancy services. I can answer questions about what we do, our areas of expertise, and how to get started. What would you like to know?";
+
+const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, themeMode = 'dark', onThemeChange, onSetThemeMode }, ref) => {
   const [isOpen, setIsOpen] = useState(config.autoOpen || false);
   const [messages, setMessages] = useState<MessageWithSafety[]>([]);
   const [input, setInput] = useState('');
@@ -23,7 +43,10 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
   const [isTyping, setIsTyping] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const isLoadingHistoryRef = useRef(false);
   const [historyOffset, setHistoryOffset] = useState(0);
+  const [consentGranted, setConsentGranted] = useState(() => chatbotService.isConsentGranted());
+  const consentRequired = chatbotService.isConsentRequired();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,9 +56,12 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Emit helper for event system
-  const emit = useCallback((event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => {
-    onEmit?.(event, data);
-  }, [onEmit]);
+  const emit = useCallback(
+    (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent | ChatbotExportEvent | ChatbotThemeChangeEvent) => {
+      onEmit?.(event, data);
+    },
+    [onEmit]
+  );
 
   // Handle open/close with event emission and focus management
   const handleOpen = useCallback(() => {
@@ -67,12 +93,27 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
       setIsTyping(false);
       setHistoryOffset(0);
       setHasMoreHistory(false);
+      setConsentGranted(false);
       emit('close');
     });
     return () => {
       chatbotService.registerConsentRevokedCallback(null);
     };
   }, [emit]);
+
+  const resetChatState = useCallback(() => {
+    setMessages([]);
+    setHistoryOffset(0);
+    setHasMoreHistory(false);
+  }, []);
+
+  // Register clear messages callback for programmatic clearHistory()
+  useEffect(() => {
+    chatbotService.registerClearMessagesCallback(resetChatState);
+    return () => {
+      chatbotService.registerClearMessagesCallback(null);
+    };
+  }, [resetChatState]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,6 +133,9 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
   useEffect(() => {
     if (!isOpen) return;
 
+    const container = containerRef.current;
+    if (!container) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Escape to close
       if (e.key === 'Escape') {
@@ -101,8 +145,8 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
       }
 
       // Focus trap: Tab cycles within widget
-      if (e.key === 'Tab' && containerRef.current) {
-        const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(
+      if (e.key === 'Tab') {
+        const focusableElements = container.querySelectorAll<HTMLElement>(
           'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
         const firstElement = focusableElements[0];
@@ -118,28 +162,29 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    container.addEventListener('keydown', handleKeyDown);
+    return () => container.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && messages.length === 0 && (!consentRequired || consentGranted)) {
       const welcomeMessage: MessageWithSafety = {
         id: 'welcome',
         role: 'assistant',
-        content: config.welcomeMessage || "Hi! I'm here to help you learn about Lifestream Dynamics IT consultancy services. I can answer questions about what we do, our areas of expertise, and how to get started. What would you like to know?",
+        content:
+          config.welcomeMessage || DEFAULT_WELCOME_MESSAGE,
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
 
-      // Load initial chat history if available (after a small delay to ensure welcome message is set)
-      setTimeout(() => {
-        loadChatHistory(welcomeMessage);
-      }, 0);
+      // Load initial chat history if available
+      loadChatHistory(welcomeMessage);
     }
-  }, [isOpen, messages.length, config.welcomeMessage]);
+  }, [isOpen, messages.length, config.welcomeMessage, consentRequired, consentGranted]);
 
   const loadChatHistory = async (welcomeMsg?: MessageWithSafety, offset = 0) => {
+    if (isLoadingHistoryRef.current) return;
+    isLoadingHistoryRef.current = true;
     setIsLoadingHistory(true);
     try {
       const historyResponse = await chatbotService.getChatHistory({
@@ -147,12 +192,12 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
         offset,
       });
 
-      if (historyResponse.success && historyResponse.data) {
+      if (historyResponse?.success && historyResponse.data) {
         const historyMessages: MessageWithSafety[] = (historyResponse.data.messages || [])
           .filter((msg) => msg && msg.content) // Filter out any null/undefined messages
           .map((msg) => ({
-            id: msg.id || `history-${Date.now()}-${Math.random()}`,
-            role: (msg.role as 'user' | 'assistant' | 'system'),
+            id: msg.id || nextMessageId('history'),
+            role: msg.role,
             content: msg.content,
             timestamp: new Date(msg.created_at),
           }));
@@ -180,160 +225,267 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
         setMessages([welcomeMsg]);
       }
     } finally {
+      isLoadingHistoryRef.current = false;
       setIsLoadingHistory(false);
     }
   };
 
   const handleLoadMore = () => {
-    if (!isLoadingHistory && hasMoreHistory) {
+    if (!isLoadingHistoryRef.current && hasMoreHistory) {
       loadChatHistory(undefined, historyOffset);
     }
   };
 
-  const sendMessageInternal = useCallback(async (messageText?: string) => {
-    const text = messageText || input.trim();
-    if (!text || isLoading) return;
+  const handleConsentAccept = useCallback(() => {
+    chatbotService.grantConsent();
+    setConsentGranted(true);
+  }, []);
 
-    const userMessage: MessageWithSafety = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: text,
+  const handleConsentDecline = useCallback(() => {
+    handleClose();
+  }, [handleClose]);
+
+  const handleClearHistory = useCallback(() => {
+    chatbotService.clearSession();
+    resetChatState();
+    // Re-add welcome message
+    const welcomeMessage: MessageWithSafety = {
+      id: 'welcome',
+      role: 'assistant',
+      content: config.welcomeMessage || DEFAULT_WELCOME_MESSAGE,
       timestamp: new Date(),
     };
+    setMessages([welcomeMessage]);
+  }, [config.welcomeMessage, resetChatState]);
 
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-    setIsTyping(true);
+  const handleExportChat = useCallback(
+    (format: 'json' | 'text' = 'json'): { success: boolean; error?: string } => {
+      const exportableMessages = messages.filter((msg) => msg && msg.content);
 
-    // Emit user message event
-    emit('message', { role: 'user', content: text, timestamp: userMessage.timestamp });
-
-    try {
-      // Streaming mode
-      if (config.enableStreaming) {
-        const assistantId = `assistant-${Date.now()}`;
-        let streamedContent = '';
-        const assistantTimestamp = new Date();
-
-        // Add placeholder message for streaming
-        const placeholderMessage: MessageWithSafety = {
-          id: assistantId,
-          role: 'assistant',
-          content: '',
-          timestamp: assistantTimestamp,
-        };
-        setMessages(prev => [...prev, placeholderMessage]);
-
-        const response = await chatbotService.sendMessage(text, {
-          metadata: config.metadata,
-          onChunk: (chunk: string) => {
-            streamedContent += chunk;
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === assistantId
-                  ? { ...msg, content: streamedContent }
-                  : msg
-              )
-            );
-          },
-        });
-
-        if (!response.success) {
-          const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === assistantId
-                ? { ...msg, role: 'system', content: errorContent }
-                : msg
-            )
-          );
-          emit('error', { type: 'api', message: errorContent, details: response.error });
-        } else {
-          // Emit assistant message event
-          emit('message', { role: 'assistant', content: streamedContent, timestamp: assistantTimestamp });
-          if (response.data?.content_safety) {
-            // Update message with content safety info
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === assistantId
-                  ? { ...msg, contentSafety: response.data?.content_safety }
-                  : msg
-              )
-            );
-          }
-        }
-      } else {
-        // Normal mode (non-streaming)
-        const response = await chatbotService.sendMessage(text, {
-          metadata: config.metadata,
-        });
-
-        if (response.success && response.data) {
-          const assistantContent = response.data.response || response.data.message || '';
-          const assistantMessage: MessageWithSafety = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: assistantContent,
-            timestamp: new Date(),
-            contentSafety: response.data.content_safety,
-          };
-
-          setMessages(prev => [...prev, assistantMessage]);
-          // Emit assistant message event
-          emit('message', { role: 'assistant', content: assistantContent, timestamp: assistantMessage.timestamp });
-        } else {
-          const errorContent = response.message || 'Sorry, I encountered an error. Please try again in a moment.';
-
-          const errorMessage: MessageWithSafety = {
-            id: `error-${Date.now()}`,
-            role: 'system',
-            content: errorContent,
-            timestamp: new Date(),
-          };
-
-          setMessages(prev => [...prev, errorMessage]);
-          emit('error', { type: 'api', message: errorContent, details: response.error });
-        }
+      if (exportableMessages.length === 0) {
+        return { success: false, error: 'No messages to export' };
       }
-    } catch (error) {
-      console.error('[LifestreamChatbot] Chat error:', error);
 
-      const errorContent = 'Unable to connect to the chat service. Please check your internet connection and try again.';
-      const errorMessage: MessageWithSafety = {
-        id: `error-${Date.now()}`,
-        role: 'system',
-        content: errorContent,
+      try {
+        let content: string;
+        let filename: string;
+        let mimeType: string;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        if (format === 'json') {
+          const exportData = {
+            exportedAt: new Date().toISOString(),
+            sessionId: chatbotService.getSessionId(),
+            messageCount: exportableMessages.length,
+            messages: exportableMessages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp.toISOString(),
+            })),
+          };
+          content = JSON.stringify(exportData, null, 2);
+          filename = `chat-export-${timestamp}.json`;
+          mimeType = 'application/json';
+        } else {
+          const lines = exportableMessages.map((msg) => {
+            const time = msg.timestamp.toLocaleString();
+            const role =
+              msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Assistant' : 'System';
+            return `[${time}] ${role}:\n${msg.content}`;
+          });
+          content = lines.join('\n\n');
+          filename = `chat-export-${timestamp}.txt`;
+          mimeType = 'text/plain';
+        }
+
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        emit('export', {
+          format,
+          messageCount: exportableMessages.length,
+          timestamp: new Date(),
+        } as ChatbotExportEvent);
+
+        return { success: true };
+      } catch (error) {
+        console.error('[LifestreamChatbot] Export error:', error);
+        return { success: false, error: 'Failed to export chat' };
+      }
+    },
+    [messages, emit]
+  );
+
+  const sendMessageInternal = useCallback(
+    async (messageText?: string) => {
+      const text = messageText || input.trim();
+      if (!text || isLoading) return;
+
+      const userMessage: MessageWithSafety = {
+        id: nextMessageId('user'),
+        role: 'user',
+        content: text,
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, errorMessage]);
-      emit('error', { type: 'network', message: errorContent, details: error });
-    } finally {
-      setIsLoading(false);
-      setIsTyping(false);
-    }
-  }, [input, isLoading, config.enableStreaming, config.metadata, emit]);
+      setMessages((prev) => [...prev, userMessage]);
+      setInput('');
+      setIsLoading(true);
+      setIsTyping(true);
+
+      // Emit user message event
+      emit('message', { role: 'user', content: text, timestamp: userMessage.timestamp });
+
+      try {
+        // Streaming mode
+        if (config.enableStreaming) {
+          const assistantId = nextMessageId('assistant');
+          let streamedContent = '';
+          const assistantTimestamp = new Date();
+
+          // Add placeholder message for streaming
+          const placeholderMessage: MessageWithSafety = {
+            id: assistantId,
+            role: 'assistant',
+            content: '',
+            timestamp: assistantTimestamp,
+          };
+          setMessages((prev) => [...prev, placeholderMessage]);
+
+          const response = await chatbotService.sendMessage(text, {
+            metadata: config.metadata,
+            onChunk: (chunk: string) => {
+              streamedContent += chunk;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantId ? { ...msg, content: streamedContent } : msg
+                )
+              );
+            },
+          });
+
+          if (!response.success) {
+            const errorContent =
+              response.message || 'Sorry, I encountered an error. Please try again in a moment.';
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantId ? { ...msg, role: 'system', content: errorContent } : msg
+              )
+            );
+            emit('error', { type: 'api', message: errorContent, details: response.error });
+          } else {
+            // Emit assistant message event
+            emit('message', {
+              role: 'assistant',
+              content: streamedContent,
+              timestamp: assistantTimestamp,
+            });
+            if (response.data?.content_safety) {
+              // Update message with content safety info
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantId
+                    ? { ...msg, contentSafety: response.data?.content_safety }
+                    : msg
+                )
+              );
+            }
+          }
+        } else {
+          // Normal mode (non-streaming)
+          const response = await chatbotService.sendMessage(text, {
+            metadata: config.metadata,
+          });
+
+          if (response.success && response.data) {
+            const assistantContent = response.data.response || response.data.message || '';
+            const assistantMessage: MessageWithSafety = {
+              id: nextMessageId('assistant'),
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: new Date(),
+              contentSafety: response.data.content_safety,
+            };
+
+            setMessages((prev) => [...prev, assistantMessage]);
+            // Emit assistant message event
+            emit('message', {
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: assistantMessage.timestamp,
+            });
+          } else {
+            const errorContent =
+              response.message || 'Sorry, I encountered an error. Please try again in a moment.';
+
+            const errorMessage: MessageWithSafety = {
+              id: nextMessageId('error'),
+              role: 'system',
+              content: errorContent,
+              timestamp: new Date(),
+            };
+
+            setMessages((prev) => [...prev, errorMessage]);
+            emit('error', { type: 'api', message: errorContent, details: response.error });
+          }
+        }
+      } catch (error) {
+        console.error('[LifestreamChatbot] Chat error:', error);
+
+        const errorContent =
+          'Unable to connect to the chat service. Please check your internet connection and try again.';
+        const errorMessage: MessageWithSafety = {
+          id: nextMessageId('error'),
+          role: 'system',
+          content: errorContent,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, errorMessage]);
+        emit('error', { type: 'network', message: errorContent, details: error });
+      } finally {
+        setIsLoading(false);
+        setIsTyping(false);
+      }
+    },
+    [input, isLoading, config.enableStreaming, config.metadata, emit]
+  );
 
   // Expose imperative handle for programmatic control
-  useImperativeHandle(ref, () => ({
-    open: handleOpen,
-    close: handleClose,
-    toggle: () => {
-      if (isOpen) {
-        handleClose();
-      } else {
-        handleOpen();
-      }
-    },
-    sendMessage: async (text: string) => {
-      if (text.trim()) {
-        await sendMessageInternal(text.trim());
-      }
-    },
-    getSessionId: () => chatbotService.getSessionId(),
-    isOpen: () => isOpen,
-  }), [isOpen, handleOpen, handleClose, sendMessageInternal]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: handleOpen,
+      close: handleClose,
+      toggle: () => {
+        if (isOpen) {
+          handleClose();
+        } else {
+          handleOpen();
+        }
+      },
+      sendMessage: async (text: string): Promise<{ success: boolean; error?: string }> => {
+        if (text.trim()) {
+          await sendMessageInternal(text.trim());
+          return { success: true };
+        }
+        return { success: false, error: 'Message text is empty' };
+      },
+      getSessionId: () => chatbotService.getSessionId(),
+      isOpen: () => isOpen,
+      exportChat: (format?: 'json' | 'text') => handleExportChat(format),
+      setThemeMode: (mode: 'dark' | 'light' | 'auto') => onSetThemeMode?.(mode),
+      getThemeMode: () => themeMode,
+    }),
+    [isOpen, handleOpen, handleClose, sendMessageInternal, handleExportChat, themeMode, onSetThemeMode]
+  );
 
   // Wrapper for button/keyboard triggered sends
   const sendMessage = () => sendMessageInternal();
@@ -348,7 +500,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
   const quickActions = config.quickActions || [
     { label: 'Our Services', message: 'What services do you offer?' },
     { label: 'Technologies', message: 'What technologies do you work with?' },
-    { label: 'Get Started', message: 'How do I get started?' }
+    { label: 'Get Started', message: 'How do I get started?' },
   ];
 
   const getPositionStyles = (): React.CSSProperties => {
@@ -396,6 +548,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
       aria-labelledby="chatbot-title"
       className="chatbot-container"
       data-testid="chatbot-container"
+      tabIndex={-1}
       style={{
         ...getPositionStyles(),
         maxWidth: config.maxWidth || '450px',
@@ -412,151 +565,180 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit }, ref
             <div className="chatbot-status-indicator" />
           </div>
           <div>
-            <h2 id="chatbot-title" className="chatbot-title">{config.title || 'AI Assistant'}</h2>
+            <h2 id="chatbot-title" className="chatbot-title">
+              {config.title || 'AI Assistant'}
+            </h2>
             <p className="chatbot-subtitle" aria-live="polite">
-              {isTyping ? 'Typing...' : (config.subtitle || 'Online')}
+              {isTyping ? 'Typing...' : config.subtitle || 'Online'}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleClose}
-          className="chatbot-minimize-btn"
-          aria-label="Minimize chat"
-          data-testid="chatbot-minimize"
-        >
-          <Minus className="chatbot-minimize-icon" />
-        </button>
-      </div>
-
-      {/* Messages Area */}
-      <div
-        className="chatbot-messages"
-        ref={messagesContainerRef}
-        role="log"
-        aria-live="polite"
-        aria-busy={isLoading}
-        aria-label="Chat messages"
-        data-testid="chatbot-messages"
-      >
-        {/* Load More Button */}
-        {hasMoreHistory && (
-          <div className="chatbot-load-more-wrapper">
-            <button
-              onClick={handleLoadMore}
-              disabled={isLoadingHistory}
-              className="chatbot-load-more-btn"
-            >
-              {isLoadingHistory ? 'Loading...' : 'Load More Messages'}
-            </button>
-          </div>
-        )}
-
-        {messages.filter(msg => msg && msg.content).map((msg, index) => (
-          <div
-            key={msg.id}
-            className={cn(
-              "chatbot-message-wrapper",
-              msg.role === 'user' ? "chatbot-message-user" : "chatbot-message-assistant"
-            )}
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div
-              className={cn(
-                "chatbot-message-bubble",
-                msg.role === 'user' && "chatbot-bubble-user",
-                msg.role === 'assistant' && "chatbot-bubble-assistant",
-                msg.role === 'system' && "chatbot-bubble-system"
-              )}
-            >
-              <div className={cn(
-                "chatbot-message-content",
-                msg.role === 'user' && "chatbot-content-user",
-                msg.role === 'assistant' && "chatbot-content-assistant",
-                msg.role === 'system' && "chatbot-content-system"
-              )}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {msg.content || ''}
-                </ReactMarkdown>
-              </div>
-
-              {/* Content Safety Warnings */}
-              {msg.contentSafety && msg.contentSafety.warnings && msg.contentSafety.warnings.length > 0 && (
-                <div className="chatbot-safety-warning">
-                  <span className="chatbot-safety-icon">⚠️</span>
-                  <span className="chatbot-safety-text">
-                    {msg.contentSafety.redactions_applied
-                      ? 'Personal information detected and protected'
-                      : msg.contentSafety.warnings.join(', ')}
-                  </span>
-                </div>
-              )}
-
-              <p className={cn(
-                "chatbot-message-time",
-                msg.role === 'user' ? "chatbot-time-user" : "chatbot-time-assistant"
-              )}>
-                {msg.timestamp?.toLocaleTimeString?.([], { hour: '2-digit', minute: '2-digit' }) || ''}
-              </p>
-            </div>
-          </div>
-        ))}
-
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="chatbot-message-wrapper chatbot-message-assistant">
-            <div className="chatbot-typing-indicator">
-              <div className="chatbot-typing-dots">
-                <span className="chatbot-typing-dot" style={{ animationDelay: '0ms' }} />
-                <span className="chatbot-typing-dot" style={{ animationDelay: '150ms' }} />
-                <span className="chatbot-typing-dot" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="chatbot-input-area">
-        <div className="chatbot-input-wrapper">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            className="chatbot-input"
-            data-testid="chatbot-input"
-          />
+        <div className="chatbot-header-actions">
+          {(!consentRequired || consentGranted) && (
+            <ChatMenu
+              onClearHistory={handleClearHistory}
+              onExportChat={handleExportChat}
+              themeMode={themeMode}
+              onToggleTheme={() => onThemeChange?.()}
+            />
+          )}
           <button
-            onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
-            className="chatbot-send-btn"
-            aria-label="Send message"
-            data-testid="chatbot-send"
+            onClick={handleClose}
+            className="chatbot-minimize-btn"
+            aria-label="Minimize chat"
+            data-testid="chatbot-minimize"
           >
-            <Send className="chatbot-send-icon" />
+            <Minus className="chatbot-minimize-icon" />
           </button>
         </div>
-
-        {/* Quick actions */}
-        <div className="chatbot-quick-actions" data-testid="chatbot-quick-actions">
-          {quickActions.map((action, idx) => (
-            <button
-              key={idx}
-              onClick={() => setInput(action.message)}
-              className="chatbot-quick-action-btn"
-              data-testid={`chatbot-quick-action-${idx}`}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
       </div>
+
+      {consentRequired && !consentGranted ? (
+        <ConsentDialog onAccept={handleConsentAccept} onDecline={handleConsentDecline} />
+      ) : (
+        <>
+          {/* Messages Area */}
+          <div
+            className="chatbot-messages"
+            ref={messagesContainerRef}
+            role="log"
+            aria-live="polite"
+            aria-busy={isLoading}
+            aria-label="Chat messages"
+            data-testid="chatbot-messages"
+          >
+            {/* Load More Button */}
+            {hasMoreHistory && (
+              <div className="chatbot-load-more-wrapper">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingHistory}
+                  className="chatbot-load-more-btn"
+                  aria-label="Load more chat history"
+                >
+                  {isLoadingHistory ? 'Loading...' : 'Load More Messages'}
+                </button>
+              </div>
+            )}
+
+            {messages
+              .filter((msg) => msg && msg.content)
+              .map((msg, index) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    'chatbot-message-wrapper',
+                    msg.role === 'user' ? 'chatbot-message-user' : 'chatbot-message-assistant'
+                  )}
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div
+                    className={cn(
+                      'chatbot-message-bubble',
+                      msg.role === 'user' && 'chatbot-bubble-user',
+                      msg.role === 'assistant' && 'chatbot-bubble-assistant',
+                      msg.role === 'system' && 'chatbot-bubble-system'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'chatbot-message-content',
+                        msg.role === 'user' && 'chatbot-content-user',
+                        msg.role === 'assistant' && 'chatbot-content-assistant',
+                        msg.role === 'system' && 'chatbot-content-system'
+                      )}
+                    >
+                      <MarkdownContent content={msg.content || ''} />
+                    </div>
+
+                    {/* Content Safety Warnings */}
+                    {msg.contentSafety &&
+                      msg.contentSafety.warnings &&
+                      msg.contentSafety.warnings.length > 0 && (
+                        <div className="chatbot-safety-warning">
+                          <span className="chatbot-safety-icon">⚠️</span>
+                          <span className="chatbot-safety-text">
+                            {msg.contentSafety.redactions_applied
+                              ? 'Personal information detected and protected'
+                              : msg.contentSafety.warnings.join(', ')}
+                          </span>
+                        </div>
+                      )}
+
+                    <p
+                      className={cn(
+                        'chatbot-message-time',
+                        msg.role === 'user' ? 'chatbot-time-user' : 'chatbot-time-assistant'
+                      )}
+                    >
+                      {msg.timestamp?.toLocaleTimeString?.([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }) || ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+            {/* Typing indicator */}
+            {isTyping && (
+              <div className="chatbot-message-wrapper chatbot-message-assistant">
+                <div className="chatbot-typing-indicator">
+                  <div className="chatbot-typing-dots">
+                    <span className="chatbot-typing-dot" style={{ animationDelay: '0ms' }} />
+                    <span className="chatbot-typing-dot" style={{ animationDelay: '150ms' }} />
+                    <span className="chatbot-typing-dot" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <div className="chatbot-input-area">
+            <div className="chatbot-input-wrapper">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your message..."
+                disabled={isLoading}
+                className="chatbot-input"
+                data-testid="chatbot-input"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!input.trim() || isLoading}
+                className="chatbot-send-btn"
+                aria-label="Send message"
+                data-testid="chatbot-send"
+              >
+                <Send className="chatbot-send-icon" />
+              </button>
+            </div>
+
+            {/* Quick actions */}
+            <div className="chatbot-quick-actions" data-testid="chatbot-quick-actions">
+              {quickActions.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setInput(action.message)}
+                  className="chatbot-quick-action-btn"
+                  data-testid={`chatbot-quick-action-${idx}`}
+                  aria-label={`Quick action: ${action.label}`}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 });

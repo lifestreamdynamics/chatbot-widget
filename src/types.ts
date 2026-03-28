@@ -13,6 +13,7 @@ export interface ChatbotConfig {
       x?: string;
       y?: string;
     };
+    mode?: 'dark' | 'light' | 'auto';
   };
   welcomeMessage?: string;
   title?: string;
@@ -24,7 +25,7 @@ export interface ChatbotConfig {
   maxWidth?: string;
   maxHeight?: string;
   enableStreaming?: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   privacy?: {
     enableSessionStorage?: boolean;
     /** @planned Not yet implemented. Will disable analytics metadata in future releases. */
@@ -60,8 +61,9 @@ export interface RateLimitInfo {
 export interface ChatResponse {
   success: boolean;
   data?: {
-    message: string;  // Changed from 'response' to match API v1.0.0
-    response?: string;  // Kept for backwards compatibility
+    message: string; // Changed from 'response' to match API v1.0.0
+    /** @deprecated Use `message` instead. Will be removed in v3.0.0. */
+    response?: string;
     session_id: string;
     tokens_used: number;
     model?: string;
@@ -69,7 +71,7 @@ export interface ChatResponse {
     content_safety?: ContentSafetyWarning;
   };
   error?: string;
-  message?: string;  // Error message
+  message?: string; // Error message
   retryAfter?: number;
   rateLimitInfo?: RateLimitInfo;
 }
@@ -85,7 +87,7 @@ export interface ChatHistoryResponse {
     session_id: string;
     messages: Array<{
       id?: string;
-      role: string;
+      role: 'user' | 'assistant' | 'system';
       content: string;
       tokens_used?: number;
       created_at: string;
@@ -101,13 +103,16 @@ export interface ChatBotHandle {
   open: () => void;
   close: () => void;
   toggle: () => void;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string) => Promise<{ success: boolean; error?: string }>;
   getSessionId: () => string;
   isOpen: () => boolean;
+  exportChat: (format?: 'json' | 'text') => { success: boolean; error?: string };
+  setThemeMode: (mode: 'dark' | 'light' | 'auto') => void;
+  getThemeMode: () => string;
 }
 
 // Event System Types
-export type ChatbotEventName = 'open' | 'close' | 'message' | 'error';
+export type ChatbotEventName = 'open' | 'close' | 'message' | 'error' | 'export' | 'themeChange';
 
 export interface ChatbotMessageEvent {
   role: 'user' | 'assistant';
@@ -116,7 +121,18 @@ export interface ChatbotMessageEvent {
 }
 
 export interface ChatbotErrorEvent {
-  type: 'api' | 'network' | 'validation';
+  type: 'api' | 'network' | 'validation' | 'streaming';
   message: string;
   details?: unknown;
+}
+
+export interface ChatbotExportEvent {
+  format: 'json' | 'text';
+  messageCount: number;
+  timestamp: Date;
+}
+
+export interface ChatbotThemeChangeEvent {
+  mode: 'dark' | 'light' | 'auto';
+  resolvedMode: 'dark' | 'light';
 }

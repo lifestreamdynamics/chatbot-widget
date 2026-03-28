@@ -1,16 +1,27 @@
 import { StrictMode, forwardRef } from 'react';
 import ChatBot from './components/ChatBot';
-import { ChatbotConfig, ChatBotHandle, ChatbotEventName, ChatbotMessageEvent, ChatbotErrorEvent } from './types';
+import {
+  ChatbotConfig,
+  ChatBotHandle,
+  ChatbotEventName,
+  ChatbotMessageEvent,
+  ChatbotErrorEvent,
+  ChatbotExportEvent,
+  ChatbotThemeChangeEvent,
+} from './types';
 
 interface ChatbotWidgetProps {
   config: ChatbotConfig;
-  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent) => void;
+  onEmit?: (event: ChatbotEventName, data?: ChatbotMessageEvent | ChatbotErrorEvent | ChatbotExportEvent | ChatbotThemeChangeEvent) => void;
+  themeMode?: 'dark' | 'light';
+  onThemeChange?: () => void;
+  onSetThemeMode?: (mode: 'dark' | 'light' | 'auto') => void;
 }
 
-const ChatbotWidget = forwardRef<ChatBotHandle, ChatbotWidgetProps>(({ config, onEmit }, ref) => {
+const ChatbotWidget = forwardRef<ChatBotHandle, ChatbotWidgetProps>(({ config, onEmit, themeMode, onThemeChange, onSetThemeMode }, ref) => {
   return (
     <StrictMode>
-      <ChatBot ref={ref} config={config} onEmit={onEmit} />
+      <ChatBot ref={ref} config={config} onEmit={onEmit} themeMode={themeMode} onThemeChange={onThemeChange} onSetThemeMode={onSetThemeMode} />
     </StrictMode>
   );
 });

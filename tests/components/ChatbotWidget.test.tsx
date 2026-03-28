@@ -1,15 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { createRef, forwardRef, useImperativeHandle } from 'react';
 import ChatbotWidget from '../../src/ChatbotWidget';
-import type { ChatbotConfig } from '../../src/types';
+import type { ChatbotConfig, ChatBotHandle } from '../../src/types';
 
 // Mock the ChatBot component since it has complex dependencies
 vi.mock('../../src/components/ChatBot', () => ({
-  default: ({ config }: { config: ChatbotConfig }) => (
-    <div data-testid="chatbot-mock" data-api-url={config.apiUrl}>
-      Mocked ChatBot
-    </div>
-  ),
+  default: forwardRef<ChatBotHandle, { config: ChatbotConfig }>(({ config }, ref) => {
+    useImperativeHandle(ref, () => ({
+      open: vi.fn(),
+      close: vi.fn(),
+      toggle: vi.fn(),
+      sendMessage: vi.fn().mockResolvedValue({ success: true }),
+      getSessionId: () => 'sess_test',
+      isOpen: () => false,
+    }));
+    return (
+      <div data-testid="chatbot-mock" data-api-url={config.apiUrl}>
+        Mocked ChatBot
+      </div>
+    );
+  }),
 }));
 
 describe('ChatbotWidget', () => {
@@ -61,5 +72,17 @@ describe('ChatbotWidget', () => {
 
     render(<ChatbotWidget config={configWithPrivacy} />);
     expect(screen.getByTestId('chatbot-mock')).toBeInTheDocument();
+  });
+
+  it('should forward ref to ChatBot component', () => {
+    const ref = createRef<ChatBotHandle>();
+    render(<ChatbotWidget ref={ref} config={defaultConfig} />);
+
+    expect(ref.current).not.toBeNull();
+    expect(typeof ref.current?.open).toBe('function');
+    expect(typeof ref.current?.close).toBe('function');
+    expect(typeof ref.current?.sendMessage).toBe('function');
+    expect(typeof ref.current?.getSessionId).toBe('function');
+    expect(typeof ref.current?.isOpen).toBe('function');
   });
 });

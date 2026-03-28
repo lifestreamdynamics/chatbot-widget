@@ -1,6 +1,6 @@
 {
   "name": "@lifestreamdynamics/chatbot-widget",
-  "version": "2.1.1",
+  "version": "2.3.0",
   "description": "Framework-agnostic AI chatbot widget with privacy controls, content safety, and pagination - embeddable on any website with a single script tag",
   "type": "module",
   "main": "./dist/lifestream-chatbot.umd.js",
@@ -8,6 +8,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/lifestream-chatbot.es.js",
       "require": "./dist/lifestream-chatbot.umd.js"
     },
@@ -27,8 +28,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/ tests/ --ext .ts,.tsx",
-    "lint:fix": "eslint src/ tests/ --ext .ts,.tsx --fix",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}'",
     "prepublishOnly": "npm run build"
@@ -60,13 +61,8 @@
   ],
   "author": "Lifestream Dynamics <eric@mittonvillage.com>",
   "license": "MIT",
-  "dependencies": {
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0",
-    "react-markdown": "^9.0.1",
-    "remark-gfm": "^4.0.0"
-  },
   "devDependencies": {
+    "@eslint/js": "^9.39.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.6.1",
@@ -76,20 +72,30 @@
     "@typescript-eslint/parser": "^8.17.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^2.1.8",
-    "eslint": "^8.57.1",
+    "eslint": "^9.39.3",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.1.0",
     "jsdom": "^25.0.1",
+    "marked": "^17.0.5",
     "prettier": "^3.4.2",
     "terser": "^5.36.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.56.1",
     "vite": "^6.0.3",
     "vitest": "^2.1.8"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "directories": {
     "example": "examples"

@@ -6,6 +6,7 @@ let USE_SESSION_STORAGE = false;
 let ENABLE_DEV_MODE = false;
 let PERSISTENT_STORAGE_ENABLED = true;
 let CONSENT_GRANTED = true;
+let CONSENT_REQUIRED = false;
 
 // Callback for when consent is revoked (set by UI layer)
 let consentRevokedCallback: (() => void) | null = null;
@@ -14,16 +15,35 @@ export function registerConsentRevokedCallback(callback: (() => void) | null): v
   consentRevokedCallback = callback;
 }
 
-export function configure(apiUrl: string, apiKey: string, sessionStorage = false, devMode = false, privacyConfig?: { enableSessionStorage?: boolean; consentRequired?: boolean; disableAnalytics?: boolean; dataRetentionDays?: number }) {
+let clearMessagesCallback: (() => void) | null = null;
+
+export function registerClearMessagesCallback(callback: (() => void) | null): void {
+  clearMessagesCallback = callback;
+}
+
+export function configure(
+  apiUrl: string,
+  apiKey: string,
+  sessionStorage = false,
+  devMode = false,
+  privacyConfig?: {
+    enableSessionStorage?: boolean;
+    consentRequired?: boolean;
+    disableAnalytics?: boolean;
+    dataRetentionDays?: number;
+  }
+) {
+  // Reset state to defaults FIRST on re-configure
+  PERSISTENT_STORAGE_ENABLED = true;
+  CONSENT_GRANTED = true;
+  CONSENT_REQUIRED = false;
+  USE_SESSION_STORAGE = false;
+
+  // Then apply parameters
   API_URL = apiUrl;
   API_KEY = apiKey;
   USE_SESSION_STORAGE = sessionStorage;
   ENABLE_DEV_MODE = devMode;
-
-  // Reset state to defaults on re-configure
-  PERSISTENT_STORAGE_ENABLED = true;
-  CONSENT_GRANTED = true;
-  USE_SESSION_STORAGE = false;
 
   // Privacy configuration
   if (privacyConfig) {
@@ -33,19 +53,24 @@ export function configure(apiUrl: string, apiKey: string, sessionStorage = false
       USE_SESSION_STORAGE = privacyConfig.enableSessionStorage;
     }
     CONSENT_GRANTED = !privacyConfig.consentRequired;
+    CONSENT_REQUIRED = !!privacyConfig.consentRequired;
 
     // Warn about unimplemented fields
     if (privacyConfig.disableAnalytics !== undefined) {
-      console.warn('[LifestreamChatbot] privacy.disableAnalytics is not yet implemented and will be ignored.');
+      console.warn(
+        '[LifestreamChatbot] privacy.disableAnalytics is not yet implemented and will be ignored.'
+      );
     }
     if (privacyConfig.dataRetentionDays !== undefined) {
-      console.warn('[LifestreamChatbot] privacy.dataRetentionDays is not yet implemented and will be ignored.');
+      console.warn(
+        '[LifestreamChatbot] privacy.dataRetentionDays is not yet implemented and will be ignored.'
+      );
     }
   }
 }
 
 export interface SendMessageOptions {
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   onChunk?: (chunk: string) => void;
 }
 
@@ -76,11 +101,12 @@ export function getSessionId(): string {
 }
 
 export function clearSession(): void {
-  if (typeof window !== 'undefined') {
+  if (PERSISTENT_STORAGE_ENABLED && CONSENT_GRANTED && typeof window !== 'undefined') {
     const storage = USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
     storage.removeItem('chatbot_session_id');
   }
   memorySessionId = null;
+  clearMessagesCallback?.();
 }
 
 export function grantConsent(): void {
@@ -93,9 +119,19 @@ export function grantConsent(): void {
 }
 
 export function revokeConsent(): void {
-  CONSENT_GRANTED = false;
+  // Clear storage BEFORE revoking consent flag, so clearSession() can
+  // access browser storage while CONSENT_GRANTED is still true
   clearSession();
+  CONSENT_GRANTED = false;
   consentRevokedCallback?.();
+}
+
+export function isConsentGranted(): boolean {
+  return CONSENT_GRANTED;
+}
+
+export function isConsentRequired(): boolean {
+  return CONSENT_REQUIRED;
 }
 
 // Helper function to extract rate limit info from headers
@@ -109,12 +145,12 @@ function extractRateLimitInfo(headers: Headers): RateLimitInfo | undefined {
 
   if (limit && remaining && reset && tokenLimit && tokenUsed && tokenRemaining) {
     return {
-      limit: parseInt(limit),
-      remaining: parseInt(remaining),
-      reset: parseInt(reset),
-      tokenLimit: parseInt(tokenLimit),
-      tokenUsed: parseInt(tokenUsed),
-      tokenRemaining: parseInt(tokenRemaining),
+      limit: parseInt(limit, 10),
+      remaining: parseInt(remaining, 10),
+      reset: parseInt(reset, 10),
+      tokenLimit: parseInt(tokenLimit, 10),
+      tokenUsed: parseInt(tokenUsed, 10),
+      tokenRemaining: parseInt(tokenRemaining, 10),
     };
   }
 
@@ -122,13 +158,16 @@ function extractRateLimitInfo(headers: Headers): RateLimitInfo | undefined {
 }
 
 // Helper function to log in dev mode
-function devLog(message: string, ...data: any[]) {
+function devLog(message: string, ...data: unknown[]) {
   if (ENABLE_DEV_MODE) {
     console.log(`[LifestreamChatbot] ${message}`, ...data);
   }
 }
 
-export async function sendMessage(message: string, options?: SendMessageOptions): Promise<ChatResponse> {
+export async function sendMessage(
+  message: string,
+  options?: SendMessageOptions
+): Promise<ChatResponse> {
   try {
     // Validate message length (max 10,000 characters per API spec)
     if (message.trim().length === 0) {
@@ -159,7 +198,7 @@ export async function sendMessage(message: string, options?: SendMessageOptions)
     const response = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -178,14 +217,15 @@ export async function sendMessage(message: string, options?: SendMessageOptions)
       const errorData = await response.json().catch(() => ({}));
 
       if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
 
         devLog('Rate limit exceeded', { retryAfter, rateLimitInfo });
 
         return {
           success: false,
           error: 'Rate Limit Exceeded',
-          message: errorData.message || 'You\'re chatting too quickly! Please wait a moment and try again.',
+          message:
+            errorData.message || "You're chatting too quickly! Please wait a moment and try again.",
           retryAfter,
           rateLimitInfo,
         };
@@ -216,8 +256,12 @@ export async function sendMessage(message: string, options?: SendMessageOptions)
     // Dev mode logging
     if (ENABLE_DEV_MODE && data.data) {
       devLog(`Rate Limit: ${rateLimitInfo?.remaining}/${rateLimitInfo?.limit} requests remaining`);
-      devLog(`Tokens: ${rateLimitInfo?.tokenUsed}/${rateLimitInfo?.tokenLimit} used today (${((rateLimitInfo?.tokenUsed || 0) / (rateLimitInfo?.tokenLimit || 1) * 100).toFixed(1)}%)`);
-      devLog(`Response time: ${responseTime}ms | Model: ${data.data.model || 'unknown'}${data.data.tokens_used ? ` | Tokens: ${data.data.tokens_used}` : ''}`);
+      devLog(
+        `Tokens: ${rateLimitInfo?.tokenUsed}/${rateLimitInfo?.tokenLimit} used today (${(((rateLimitInfo?.tokenUsed || 0) / (rateLimitInfo?.tokenLimit || 1)) * 100).toFixed(1)}%)`
+      );
+      devLog(
+        `Response time: ${responseTime}ms | Model: ${data.data.model || 'unknown'}${data.data.tokens_used ? ` | Tokens: ${data.data.tokens_used}` : ''}`
+      );
 
       if (data.data.content_safety?.warnings?.length) {
         devLog('Content Safety:', data.data.content_safety.warnings.join(', '));
@@ -225,7 +269,6 @@ export async function sendMessage(message: string, options?: SendMessageOptions)
     }
 
     return data;
-
   } catch (error) {
     console.error('[LifestreamChatbot] API Error:', error);
     return {
@@ -247,7 +290,7 @@ async function sendStreamingMessage(
     const response = await fetch(`${API_URL}/chat/stream`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -264,7 +307,7 @@ async function sendStreamingMessage(
       const errorData = await response.json().catch(() => ({}));
 
       if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
         return {
           success: false,
           error: 'Rate Limit Exceeded',
@@ -327,7 +370,9 @@ async function sendStreamingMessage(
               if (ENABLE_DEV_MODE) {
                 devLog(`Streaming complete: ${responseTime}ms`);
                 if (rateLimitInfo) {
-                  devLog(`Rate Limit: ${rateLimitInfo.remaining}/${rateLimitInfo.limit} requests remaining`);
+                  devLog(
+                    `Rate Limit: ${rateLimitInfo.remaining}/${rateLimitInfo.limit} requests remaining`
+                  );
                 }
               }
 
@@ -335,7 +380,7 @@ async function sendStreamingMessage(
                 success: true,
                 data: {
                   message: fullResponse,
-                  response: fullResponse,  // Backwards compatibility
+                  response: fullResponse, // Backwards compatibility
                   session_id: sessionId,
                   tokens_used: parsed.tokens_used || 0,
                   model: parsed.model,
@@ -353,8 +398,8 @@ async function sendStreamingMessage(
                 rateLimitInfo,
               };
             }
-          } catch {
-            // Skip invalid JSON
+          } catch (parseError) {
+            devLog('Failed to parse streaming chunk:', parseError);
             continue;
           }
         }
@@ -375,7 +420,6 @@ async function sendStreamingMessage(
       },
       rateLimitInfo,
     };
-
   } catch (error) {
     console.error('[LifestreamChatbot] Streaming Error:', error);
     return {
@@ -413,7 +457,7 @@ export async function getChatHistory(params?: ChatHistoryParams): Promise<ChatHi
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
     });
 
@@ -427,10 +471,11 @@ export async function getChatHistory(params?: ChatHistoryParams): Promise<ChatHi
 
     const data: ChatHistoryResponse = await response.json();
 
-    devLog(`Chat history loaded: ${data.data?.messages?.length || 0} messages${data.data?.has_more ? ' (more available)' : ''}`);
+    devLog(
+      `Chat history loaded: ${data.data?.messages?.length || 0} messages${data.data?.has_more ? ' (more available)' : ''}`
+    );
 
     return data;
-
   } catch (error) {
     console.error('[LifestreamChatbot] Chat History Error:', error);
     return {

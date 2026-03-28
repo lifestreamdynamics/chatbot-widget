@@ -34,6 +34,7 @@ npx vitest tests/components/ChatBot.test.tsx --watch  # Watch mode for single fi
 1. `src/index.tsx` - Main entry: exports `initLifestreamChatbot()`, attaches to `window.LifestreamChatbot`, manages React root mounting
 2. `src/ChatbotWidget.tsx` - Wraps ChatBot in StrictMode, forwards ref for programmatic API
 3. `src/components/ChatBot.tsx` - Main UI component with chat logic, message state, streaming
+4. `src/utils/markdown.tsx` - Lightweight markdown renderer using `marked` + custom HTML sanitizer
 
 ### Service Layer
 `src/services/chatbotService.ts` manages:
@@ -48,13 +49,14 @@ npx vitest tests/components/ChatBot.test.tsx --watch  # Watch mode for single fi
 - `init()`, `open()`, `close()`, `toggle()`, `sendMessage()`, `getSessionId()`, `isOpen()`
 - `grantConsent()`, `revokeConsent()`, `clearHistory()`
 - `on()`, `off()` - Event system for 'open', 'close', 'message', 'error' events
+- `exportChat()`, `setThemeMode()`, `getThemeMode()`
 
 ### Type Definitions
 `src/types.ts` contains:
 - `ChatbotConfig` - Full configuration interface
 - `ChatBotHandle` - Ref interface for programmatic control
 - `ChatResponse`, `ChatHistoryResponse` - API response types
-- Event types: `ChatbotEventName`, `ChatbotMessageEvent`, `ChatbotErrorEvent`, `ChatbotEventCallback`, `ChatbotEventEmitter`
+- Event types: `ChatbotEventName`, `ChatbotMessageEvent`, `ChatbotErrorEvent`, `ChatbotExportEvent`, `ChatbotThemeChangeEvent`
 
 ### Build Output
 Vite builds three formats to `dist/`:
@@ -92,7 +94,11 @@ Auth: Bearer token (`pk_...`). Session ID pattern: `sess_[timestamp]_[random]`.
 - `tests/chatbotService.test.ts` — service layer tests
 - `tests/components/ChatBot.test.tsx` — main component tests
 - `tests/components/ChatbotWidget.test.tsx` — wrapper component tests
+- `tests/components/ConsentDialog.test.tsx` — consent dialog component tests
+- `tests/components/ChatMenu.test.tsx` — chat menu component tests
 - `tests/index.test.tsx` — public API layer tests (init, events, consent, globals)
+- `tests/utils/cn.test.ts` — class name utility tests
+- `tests/utils/markdown.test.ts` — markdown renderer and sanitizer tests
 
 ## CI/CD
 
