@@ -32,7 +32,7 @@ export default function ChatMenu({ onClearHistory, onExportChat, themeMode, onTo
     document.addEventListener('keydown', handleEscape, true);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleEscape, true);
     };
   }, [isOpen]);
 

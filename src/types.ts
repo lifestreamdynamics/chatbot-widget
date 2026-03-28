@@ -24,7 +24,13 @@ export interface ChatbotConfig {
   sessionStorage?: boolean;
   maxWidth?: string;
   maxHeight?: string;
+  /** Custom CSS class(es) applied to the chat window container */
+  className?: string;
+  /** Custom CSS class(es) applied to the floating trigger button */
+  buttonClassName?: string;
   enableStreaming?: boolean;
+  /** Enable client-side message persistence across page reloads. Requires storage to be enabled. */
+  persistMessages?: boolean;
   metadata?: Record<string, unknown>;
   privacy?: {
     enableSessionStorage?: boolean;
@@ -108,7 +114,7 @@ export interface ChatBotHandle {
   isOpen: () => boolean;
   exportChat: (format?: 'json' | 'text') => { success: boolean; error?: string };
   setThemeMode: (mode: 'dark' | 'light' | 'auto') => void;
-  getThemeMode: () => string;
+  getThemeMode: () => 'dark' | 'light' | 'auto';
 }
 
 // Event System Types

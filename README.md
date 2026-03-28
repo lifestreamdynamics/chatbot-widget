@@ -23,6 +23,8 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - [Testing](#-testing) 🆕 **New in v2.1.0**
 - [Conversation Export](#-conversation-export) 🆕 **New in v2.3.0**
 - [Dark/Light Mode](#-darklight-mode) 🆕 **New in v2.3.0**
+- [Custom CSS Classes](#-custom-css-classes) 🆕 **New in v2.4.0**
+- [Message Persistence](#-message-persistence) 🆕 **New in v2.4.0**
 - [Development](#️-development)
 - [Browser Support](#-browser-support)
 - [Accessibility](#-accessibility)
@@ -52,7 +54,7 @@ A framework-agnostic, embeddable AI chatbot widget powered by Google Gemini. Int
 - **🌗 Dark/Light Mode** - Toggle between dark and light themes, or auto-follow OS preference
 - **🧪 E2E Testing Ready** - Stable data-testid attributes for reliable test automation
 - **📦 TypeScript Support** - Full type definitions included
-- **⚙️ Small Bundle** - Optimized for fast loading (~111KB gzipped)
+- **⚙️ Small Bundle** - Optimized for fast loading (~84KB gzipped)
 
 ## 📦 Installation
 
@@ -346,6 +348,8 @@ quickActions: [
   { label: '📞 Contact', message: 'How do I contact support?' }
 ]
 ```
+
+> **Note:** Quick action buttons populate the input field with their message text, allowing users to review and edit before sending. They do not auto-send.
 
 ## 📝 Full Configuration Example
 
@@ -959,6 +963,9 @@ exportChat('json');
 // Theme control
 setThemeMode('light');
 getThemeMode();
+
+// Check API health
+const isHealthy = await checkHealth();
 ```
 
 ### Global Access (IIFE/UMD)
@@ -986,6 +993,7 @@ When using the script tag version, methods are available on `window.LifestreamCh
   LifestreamChatbot.exportChat('json');
   LifestreamChatbot.setThemeMode('light');
   LifestreamChatbot.getThemeMode();
+  LifestreamChatbot.checkHealth();
 </script>
 ```
 
@@ -1053,6 +1061,32 @@ off('message', handler);
   });
 </script>
 ```
+
+### TypeScript Types
+
+The widget exports all TypeScript types for consumers:
+
+```typescript
+import type {
+  ChatbotConfig,
+  ChatBotHandle,
+  ChatbotEventName,
+  ChatbotMessageEvent,
+  ChatbotErrorEvent,
+  ChatbotExportEvent,
+  ChatbotThemeChangeEvent,
+} from '@lifestreamdynamics/chatbot-widget';
+```
+
+| Type | Description |
+|------|-------------|
+| `ChatbotConfig` | Full configuration interface for `initLifestreamChatbot()` |
+| `ChatBotHandle` | Ref interface for programmatic control methods |
+| `ChatbotEventName` | Union type of valid event names |
+| `ChatbotMessageEvent` | Event data for `message` events |
+| `ChatbotErrorEvent` | Event data for `error` events |
+| `ChatbotExportEvent` | Event data for `export` events |
+| `ChatbotThemeChangeEvent` | Event data for `themeChange` events |
 
 ## 🧪 Testing
 
@@ -1202,6 +1236,90 @@ theme: {
 </script>
 ```
 
+## 🎨 Custom CSS Classes
+
+Apply custom CSS classes to the widget elements for integration with your site's design system.
+
+### Configuration
+
+```javascript
+initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  className: 'my-chat-container',
+  buttonClassName: 'my-chat-button',
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `className` | `string` | `undefined` | CSS class(es) added to the chat window container |
+| `buttonClassName` | `string` | `undefined` | CSS class(es) added to the floating trigger button |
+
+### Example: Tailwind CSS Integration
+
+```html
+<script>
+  initLifestreamChatbot({
+    apiUrl: 'https://api.example.com/api/v1',
+    apiKey: 'pk_your_key',
+    className: 'shadow-2xl rounded-2xl',
+    buttonClassName: 'ring-4 ring-blue-500',
+  });
+</script>
+```
+
+Custom classes are appended to the widget's built-in classes, so they can override or extend the default styling without conflicts.
+
+## 💾 Message Persistence
+
+Persist chat messages in the browser so conversations survive page reloads.
+
+### Configuration
+
+```javascript
+initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  persistMessages: true,
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `persistMessages` | `boolean` | `false` | Enable client-side message persistence across page reloads |
+
+### How It Works
+
+1. When enabled, messages are saved to browser storage after each message exchange
+2. On page reload, persisted messages are restored automatically
+3. Messages are stored in the same storage as the session ID (localStorage or sessionStorage depending on privacy config)
+4. A maximum of 100 messages are stored to prevent storage bloat
+
+### Privacy Integration
+
+Message persistence respects all privacy settings:
+
+- **Disabled by default** - opt-in via `persistMessages: true`
+- **Consent-aware** - messages are not persisted until consent is granted (when `consentRequired: true`)
+- **Storage-aware** - uses the same storage type as session data (localStorage, sessionStorage, or in-memory)
+- **Cleared on revoke** - `revokeConsent()` and `clearHistory()` both clear persisted messages
+- **In-memory mode** - persistence is automatically disabled when storage is not available
+
+### Example: Persistent Chat with Privacy
+
+```javascript
+initLifestreamChatbot({
+  apiUrl: 'https://api.example.com/api/v1',
+  apiKey: 'pk_your_key',
+  persistMessages: true,
+  privacy: {
+    consentRequired: true,
+  },
+});
+// Messages persist only after user grants consent
+```
+
 ## 🛠️ Development
 
 ### Prerequisites
@@ -1273,6 +1391,10 @@ chatbot-widget/
 - Mobile Safari (iOS 14+)
 - Chrome Mobile (Android 6+)
 
+### React Compatibility
+
+The widget bundles its own copy of React for IIFE/UMD script tag usage. When using the ES module import, the widget declares `react` and `react-dom` as optional peer dependencies (`>=18.0.0`). The widget is developed and tested against React 19.
+
 ## ♿ Accessibility
 
 - Keyboard navigation support
@@ -1285,8 +1407,8 @@ chatbot-widget/
 
 ### Security Features
 
-- XSS protection via React's built-in escaping
-- Safe markdown rendering with react-markdown
+- XSS protection via React's built-in escaping and custom HTML sanitizer
+- Safe markdown rendering with allowlist-based HTML sanitizer (marked + custom sanitizer)
 - No inline scripts in generated HTML
 - HTTPS recommended for production
 - Use public API keys only (implement rate limiting on backend)

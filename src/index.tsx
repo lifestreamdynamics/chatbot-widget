@@ -16,6 +16,7 @@ import {
   revokeConsent as revokeConsentService,
   clearSession as clearSessionService,
   getSessionId as getSessionIdService,
+  checkHealth as checkHealthService,
 } from './services/chatbotService';
 import './styles.css';
 
@@ -168,7 +169,8 @@ export function initLifestreamChatbot(config: ChatbotConfig): () => void {
     config.apiKey,
     config.sessionStorage,
     config.enableDevMode,
-    config.privacy
+    config.privacy,
+    config.persistMessages
   );
 
   // Create or get mount point
@@ -289,7 +291,7 @@ export function setThemeMode(mode: 'dark' | 'light' | 'auto'): void {
   emitEvent('themeChange', { mode: currentThemeMode, resolvedMode: resolvedThemeMode });
 }
 
-export function getThemeMode(): string {
+export function getThemeMode(): 'dark' | 'light' | 'auto' {
   return currentThemeMode;
 }
 
@@ -303,6 +305,11 @@ export function exportChat(format?: 'json' | 'text'): { success: boolean; error?
 
   return chatBotRef.current?.exportChat(resolvedFormat)
     ?? { success: false, error: 'Widget not initialized' };
+}
+
+// Health Check
+export async function checkHealth(healthUrl?: string): Promise<boolean> {
+  return checkHealthService(healthUrl);
 }
 
 // Event System - exposed functions
@@ -345,6 +352,7 @@ declare global {
       setThemeMode: typeof setThemeMode;
       getThemeMode: typeof getThemeMode;
       getSessionId: typeof getSessionId;
+      checkHealth: typeof checkHealth;
       isOpen: typeof isOpen;
       on: typeof on;
       off: typeof off;
@@ -370,6 +378,7 @@ if (typeof window !== 'undefined') {
     exportChat,
     setThemeMode,
     getThemeMode,
+    checkHealth,
     getSessionId,
     isOpen,
     // Event System

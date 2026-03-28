@@ -35,6 +35,15 @@ const nextMessageId = (prefix: string) => `${prefix}-${++_messageIdCounter}`;
 const DEFAULT_WELCOME_MESSAGE =
   "Hi! I'm here to help you learn about Lifestream Dynamics IT consultancy services. I can answer questions about what we do, our areas of expertise, and how to get started. What would you like to know?";
 
+function createWelcomeMessage(welcomeMessage?: string): MessageWithSafety {
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    content: welcomeMessage || DEFAULT_WELCOME_MESSAGE,
+    timestamp: new Date(),
+  };
+}
+
 const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, themeMode = 'dark', onThemeChange, onSetThemeMode }, ref) => {
   const [isOpen, setIsOpen] = useState(config.autoOpen || false);
   const [messages, setMessages] = useState<MessageWithSafety[]>([]);
@@ -123,6 +132,13 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
     scrollToBottom();
   }, [messages]);
 
+  // Persist messages when they change
+  useEffect(() => {
+    if (messages.length > 0 && chatbotService.isPersistMessagesEnabled()) {
+      chatbotService.saveMessages(messages);
+    }
+  }, [messages]);
+
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
@@ -168,13 +184,15 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
 
   useEffect(() => {
     if (isOpen && messages.length === 0 && (!consentRequired || consentGranted)) {
-      const welcomeMessage: MessageWithSafety = {
-        id: 'welcome',
-        role: 'assistant',
-        content:
-          config.welcomeMessage || DEFAULT_WELCOME_MESSAGE,
-        timestamp: new Date(),
-      };
+      // Try loading persisted messages first
+      const persisted = chatbotService.loadPersistedMessages();
+      if (persisted && persisted.length > 0) {
+        setMessages(persisted as MessageWithSafety[]);
+        return;
+      }
+
+      // Fall back to welcome message + API history
+      const welcomeMessage = createWelcomeMessage(config.welcomeMessage);
       setMessages([welcomeMessage]);
 
       // Load initial chat history if available
@@ -249,13 +267,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
     chatbotService.clearSession();
     resetChatState();
     // Re-add welcome message
-    const welcomeMessage: MessageWithSafety = {
-      id: 'welcome',
-      role: 'assistant',
-      content: config.welcomeMessage || DEFAULT_WELCOME_MESSAGE,
-      timestamp: new Date(),
-    };
-    setMessages([welcomeMessage]);
+    setMessages([createWelcomeMessage(config.welcomeMessage)]);
   }, [config.welcomeMessage, resetChatState]);
 
   const handleExportChat = useCallback(
@@ -324,9 +336,9 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
   );
 
   const sendMessageInternal = useCallback(
-    async (messageText?: string) => {
+    async (messageText?: string): Promise<{ success: boolean; error?: string }> => {
       const text = messageText || input.trim();
-      if (!text || isLoading) return;
+      if (!text || isLoading) return { success: false, error: 'Message text is empty or loading' };
 
       const userMessage: MessageWithSafety = {
         id: nextMessageId('user'),
@@ -380,6 +392,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
               )
             );
             emit('error', { type: 'api', message: errorContent, details: response.error });
+            return { success: false, error: errorContent };
           } else {
             // Emit assistant message event
             emit('message', {
@@ -397,6 +410,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
                 )
               );
             }
+            return { success: true };
           }
         } else {
           // Normal mode (non-streaming)
@@ -421,6 +435,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
               content: assistantContent,
               timestamp: assistantMessage.timestamp,
             });
+            return { success: true };
           } else {
             const errorContent =
               response.message || 'Sorry, I encountered an error. Please try again in a moment.';
@@ -434,6 +449,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
 
             setMessages((prev) => [...prev, errorMessage]);
             emit('error', { type: 'api', message: errorContent, details: response.error });
+            return { success: false, error: errorContent };
           }
         }
       } catch (error) {
@@ -450,6 +466,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
 
         setMessages((prev) => [...prev, errorMessage]);
         emit('error', { type: 'network', message: errorContent, details: error });
+        return { success: false, error: errorContent };
       } finally {
         setIsLoading(false);
         setIsTyping(false);
@@ -473,8 +490,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
       },
       sendMessage: async (text: string): Promise<{ success: boolean; error?: string }> => {
         if (text.trim()) {
-          await sendMessageInternal(text.trim());
-          return { success: true };
+          return sendMessageInternal(text.trim());
         }
         return { success: false, error: 'Message text is empty' };
       },
@@ -523,7 +539,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
       <button
         ref={buttonRef}
         onClick={handleOpen}
-        className="chatbot-button"
+        className={cn('chatbot-button', config.buttonClassName)}
         style={getPositionStyles()}
         aria-label="Open chat"
         aria-expanded={false}
@@ -546,7 +562,7 @@ const ChatBot = forwardRef<ChatBotHandle, ChatBotProps>(({ config, onEmit, theme
       role="dialog"
       aria-modal="true"
       aria-labelledby="chatbot-title"
-      className="chatbot-container"
+      className={cn('chatbot-container', config.className)}
       data-testid="chatbot-container"
       tabIndex={-1}
       style={{

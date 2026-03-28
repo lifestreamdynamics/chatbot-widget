@@ -22,6 +22,10 @@ vi.mock('../../src/services/chatbotService', () => ({
   isConsentRequired: vi.fn(() => false),
   grantConsent: vi.fn(),
   clearSession: vi.fn(),
+  loadPersistedMessages: vi.fn().mockReturnValue(null),
+  saveMessages: vi.fn(),
+  clearPersistedMessages: vi.fn(),
+  isPersistMessagesEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // Mock markdown renderer to avoid complex rendering
@@ -1209,6 +1213,93 @@ describe('ChatBot', () => {
         'export',
         expect.objectContaining({ format: 'json' })
       );
+    });
+  });
+
+  // ============================================
+  // CUSTOM CSS CLASSES TESTS
+  // ============================================
+  describe('Custom CSS Classes', () => {
+    it('should apply buttonClassName to the trigger button', () => {
+      const { getByTestId } = render(
+        <ChatBot config={{ ...defaultConfig, buttonClassName: 'my-custom-btn extra-class' }} />
+      );
+      const button = getByTestId('chatbot-button');
+      expect(button.className).toContain('chatbot-button');
+      expect(button.className).toContain('my-custom-btn');
+      expect(button.className).toContain('extra-class');
+    });
+
+    it('should apply className to the chat container', async () => {
+      const { getByTestId } = render(
+        <ChatBot config={{ ...defaultConfig, className: 'my-container-class' }} />
+      );
+      // Open the chat
+      fireEvent.click(getByTestId('chatbot-button'));
+      await waitFor(() => {
+        const container = getByTestId('chatbot-container');
+        expect(container.className).toContain('chatbot-container');
+        expect(container.className).toContain('my-container-class');
+      });
+    });
+
+    it('should work without custom classNames', () => {
+      const { getByTestId } = render(
+        <ChatBot config={defaultConfig} />
+      );
+      const button = getByTestId('chatbot-button');
+      expect(button.className).toContain('chatbot-button');
+    });
+  });
+
+  // ============================================
+  // MESSAGE PERSISTENCE TESTS
+  // ============================================
+  describe('Message Persistence', () => {
+    it('should load persisted messages on open', async () => {
+      const persistedMessages = [
+        { id: 'p1', role: 'user', content: 'Previous message', timestamp: new Date() },
+        { id: 'p2', role: 'assistant', content: 'Previous response', timestamp: new Date() },
+      ];
+      vi.mocked(chatbotService.loadPersistedMessages).mockReturnValue(persistedMessages);
+
+      const { getByTestId } = render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(getByTestId('chatbot-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Previous message')).toBeInTheDocument();
+        expect(screen.getByText('Previous response')).toBeInTheDocument();
+      });
+    });
+
+    it('should fall back to welcome message when no persisted messages', async () => {
+      vi.mocked(chatbotService.loadPersistedMessages).mockReturnValue(null);
+
+      const { getByTestId } = render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(getByTestId('chatbot-button'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/I'm here to help/)).toBeInTheDocument();
+      });
+    });
+
+    it('should save messages after receiving a response', async () => {
+      vi.mocked(chatbotService.loadPersistedMessages).mockReturnValue(null);
+      vi.mocked(chatbotService.isPersistMessagesEnabled).mockReturnValue(true);
+
+      const { getByTestId } = render(<ChatBot config={defaultConfig} />);
+      fireEvent.click(getByTestId('chatbot-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('chatbot-input')).toBeInTheDocument();
+      });
+
+      fireEvent.change(getByTestId('chatbot-input'), { target: { value: 'Test message' } });
+      fireEvent.click(getByTestId('chatbot-send'));
+
+      await waitFor(() => {
+        expect(chatbotService.saveMessages).toHaveBeenCalled();
+      });
     });
   });
 });

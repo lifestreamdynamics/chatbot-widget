@@ -5,6 +5,47 @@ All notable changes to the Lifestream Chatbot Widget will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-03-28
+
+### Added
+- **Custom CSS Class Injection:** Apply custom CSS classes to widget elements
+  - `className` config option: applied to the chat window container
+  - `buttonClassName` config option: applied to the floating trigger button
+  - Classes are appended to built-in classes, enabling easy integration with Tailwind CSS or other frameworks
+- **Message Persistence Across Page Reloads:** Opt-in client-side message persistence
+  - `persistMessages: true` config option stores messages in browser storage
+  - Messages restored automatically on page reload
+  - Capped at 100 messages to prevent storage bloat
+  - Respects all privacy settings: disabled when consent not granted or storage not enabled
+  - Cleared by `clearHistory()` and `revokeConsent()`
+- **`checkHealth()` Public API:** Health check endpoint now accessible via programmatic API
+  - Available as `checkHealth()` ES module export and `LifestreamChatbot.checkHealth()` global
+
+### Fixed
+- README: Bundle size corrected from `~111KB` to `~84KB` gzipped
+- README: Security section updated to reflect `marked` + custom sanitizer (was `react-markdown`)
+- README: Added TypeScript type exports documentation
+- README: Added quick actions UX behavior note (populate input, don't auto-send)
+- README: Added React 19 compatibility note
+- CHANGELOG: Added missing v2.1.1 in Version History summary
+- `examples/basic.html`: Fixed default position description (`bottom-right`, not `bottom-left`)
+- `examples/advanced.html`: Updated programmatic control functions to use real `LifestreamChatbot` API (were showing placeholder alerts)
+- Removed dead `vi.mock('react-markdown')` and `vi.mock('remark-gfm')` from test setup
+- Updated 4 agent definitions (`.claude/agents/`) to reference `marked` + custom sanitizer instead of `react-markdown`
+- `ChatBotHandle.sendMessage()` now correctly returns `{ success: false }` on API errors (was always returning `{ success: true }`)
+- `ChatMenu.tsx`: Fixed Escape key listener leak — `removeEventListener` now matches `addEventListener` capture phase flag
+- `clearPersistedMessages()`: No longer creates a side-effect session ID when called on fresh state
+- `getThemeMode()` return type narrowed from `string` to `'dark' | 'light' | 'auto'`
+- Extracted `getStorage()` helper in chatbotService to deduplicate 5 repeated storage accessor patterns
+- Extracted `createWelcomeMessage()` helper in ChatBot.tsx to deduplicate welcome message construction
+
+### Technical Details
+- New config fields: `className`, `buttonClassName`, `persistMessages`
+- New public API: `checkHealth(healthUrl?)`
+- New service functions: `saveMessages()`, `loadPersistedMessages()`, `clearPersistedMessages()`, `isPersistMessagesEnabled()`, `getStorage()` (internal)
+- Test count: 230 → 247 (17 new tests)
+- No new dependencies
+
 ## [2.3.0] - 2026-03-27
 
 ### Added
@@ -315,12 +356,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Note: Items below are speculative backlog. High Priority items above are active targets. -->
 ### Planned Features
-- Message persistence across page reloads
+- ~~Message persistence across page reloads~~ (completed 2026-03-28 — opt-in `persistMessages: true`)
+- ~~Custom CSS class injection~~ (completed 2026-03-28 — `className` and `buttonClassName` config)
 - File upload support
 - Voice input option
 - Analytics integration (opt-in)
 - Internationalization (i18n) support
-- Custom CSS class injection
 - Message read receipts
 - Rich media support (images, videos, buttons)
 
@@ -341,8 +382,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **2.4.0** (2026-03-28) - Custom CSS Classes, Message Persistence, checkHealth() API, documentation fixes
 - **2.3.0** (2026-03-27) - Conversation Export, Dark/Light Mode, Bundle Size Reduction
 - **2.2.0** (2026-03-27) - Consent Dialog UI, In-Widget Chat Menu, 23 bug fixes
+- **2.1.1** (2026-02-17) - Documentation accuracy fixes, @planned annotations
 - **2.1.0** (2025-12-21) - Programmatic API, event system, full accessibility (WCAG 2.1 AA)
 - **2.0.1** (2025-10-19) - Critical bug fixes and bundle optimization
 - **2.0.0** (2025-10-18) - Major release with privacy controls, content safety, and pagination

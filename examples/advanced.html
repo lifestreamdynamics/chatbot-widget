@@ -215,28 +215,20 @@
 
     // Programmatic control functions
     function openChat() {
-      // Note: The widget doesn't expose open/close methods directly
-      // You would need to enhance the widget API for this
-      console.log('Open chat - requires widget API enhancement');
-      alert('This feature requires adding an API to the widget. See README for details.');
+      LifestreamChatbot.open();
     }
 
     function closeChat() {
-      console.log('Close chat - requires widget API enhancement');
-      alert('This feature requires adding an API to the widget. See README for details.');
+      LifestreamChatbot.close();
     }
 
     function sendTestMessage() {
-      console.log('Send message - requires widget API enhancement');
-      alert('This feature requires adding an API to the widget. See README for details.');
+      LifestreamChatbot.sendMessage('Hello! This is a test message sent programmatically.');
     }
 
     function clearHistory() {
-      // This function is available in the chatbot service
       if (confirm('Clear conversation history?')) {
-        localStorage.removeItem('chatbot_session_id');
-        sessionStorage.removeItem('chatbot_session_id');
-        alert('History cleared! Refresh the page to start a new conversation.');
+        LifestreamChatbot.clearHistory();
       }
     }
 

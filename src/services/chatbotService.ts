@@ -7,6 +7,7 @@ let ENABLE_DEV_MODE = false;
 let PERSISTENT_STORAGE_ENABLED = true;
 let CONSENT_GRANTED = true;
 let CONSENT_REQUIRED = false;
+let PERSIST_MESSAGES = false;
 
 // Callback for when consent is revoked (set by UI layer)
 let consentRevokedCallback: (() => void) | null = null;
@@ -31,13 +32,15 @@ export function configure(
     consentRequired?: boolean;
     disableAnalytics?: boolean;
     dataRetentionDays?: number;
-  }
+  },
+  persistMessages = false
 ) {
   // Reset state to defaults FIRST on re-configure
   PERSISTENT_STORAGE_ENABLED = true;
   CONSENT_GRANTED = true;
   CONSENT_REQUIRED = false;
   USE_SESSION_STORAGE = false;
+  PERSIST_MESSAGES = false;
 
   // Then apply parameters
   API_URL = apiUrl;
@@ -67,6 +70,8 @@ export function configure(
       );
     }
   }
+
+  PERSIST_MESSAGES = !!persistMessages;
 }
 
 export interface SendMessageOptions {
@@ -76,6 +81,10 @@ export interface SendMessageOptions {
 
 // In-memory storage for when consent not granted or storage disabled
 let memorySessionId: string | null = null;
+
+function getStorage(): Storage {
+  return USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
+}
 
 export function getSessionId(): string {
   if (typeof window === 'undefined') return '';
@@ -88,7 +97,7 @@ export function getSessionId(): string {
     return memorySessionId;
   }
 
-  const storage = USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
+  const storage = getStorage();
   let sessionId = storage.getItem('chatbot_session_id');
 
   if (!sessionId) {
@@ -102,9 +111,10 @@ export function getSessionId(): string {
 
 export function clearSession(): void {
   if (PERSISTENT_STORAGE_ENABLED && CONSENT_GRANTED && typeof window !== 'undefined') {
-    const storage = USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
+    const storage = getStorage();
     storage.removeItem('chatbot_session_id');
   }
+  clearPersistedMessages();
   memorySessionId = null;
   clearMessagesCallback?.();
 }
@@ -113,7 +123,7 @@ export function grantConsent(): void {
   CONSENT_GRANTED = true;
   // Move session from memory to storage if exists
   if (memorySessionId && PERSISTENT_STORAGE_ENABLED && typeof window !== 'undefined') {
-    const storage = USE_SESSION_STORAGE ? window.sessionStorage : window.localStorage;
+    const storage = getStorage();
     storage.setItem('chatbot_session_id', memorySessionId);
   }
 }
@@ -132,6 +142,81 @@ export function isConsentGranted(): boolean {
 
 export function isConsentRequired(): boolean {
   return CONSENT_REQUIRED;
+}
+
+export function isPersistMessagesEnabled(): boolean {
+  return PERSIST_MESSAGES && PERSISTENT_STORAGE_ENABLED && CONSENT_GRANTED;
+}
+
+export function saveMessages(messages: Array<{ id: string; role: string; content: string; timestamp: Date }>): void {
+  if (!isPersistMessagesEnabled() || typeof window === 'undefined') return;
+
+  const sessionId = getSessionId();
+  if (!sessionId) return;
+
+  const storage = getStorage();
+  const key = `chatbot_messages_${sessionId}`;
+
+  // Cap at 100 messages
+  const toSave = messages.slice(-100);
+
+  try {
+    const serialized = JSON.stringify(toSave.map(msg => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: msg.timestamp.toISOString(),
+    })));
+    storage.setItem(key, serialized);
+  } catch (error) {
+    devLog('Failed to save messages:', error);
+  }
+}
+
+export function loadPersistedMessages(): Array<{ id: string; role: string; content: string; timestamp: Date }> | null {
+  if (!isPersistMessagesEnabled() || typeof window === 'undefined') return null;
+
+  const sessionId = getSessionId();
+  if (!sessionId) return null;
+
+  const storage = getStorage();
+  const key = `chatbot_messages_${sessionId}`;
+
+  try {
+    const data = storage.getItem(key);
+    if (!data) return null;
+
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+    return parsed.map((msg: { id: string; role: string; content: string; timestamp: string }) => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: new Date(msg.timestamp),
+    }));
+  } catch (error) {
+    devLog('Failed to load persisted messages:', error);
+    return null;
+  }
+}
+
+export function clearPersistedMessages(): void {
+  if (typeof window === 'undefined') return;
+
+  // Read existing session ID without creating a new one
+  const sessionId = memorySessionId
+    || window.localStorage.getItem('chatbot_session_id')
+    || window.sessionStorage.getItem('chatbot_session_id');
+  if (!sessionId) return;
+
+  const key = `chatbot_messages_${sessionId}`;
+  try {
+    window.localStorage.removeItem(key);
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors during cleanup
+  }
 }
 
 // Helper function to extract rate limit info from headers

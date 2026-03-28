@@ -11,6 +11,10 @@ import {
   isConsentGranted,
   isConsentRequired,
   registerClearMessagesCallback,
+  saveMessages,
+  loadPersistedMessages,
+  clearPersistedMessages,
+  isPersistMessagesEnabled,
 } from '../src/services/chatbotService';
 
 describe('chatbotService', () => {
@@ -599,6 +603,108 @@ describe('chatbotService', () => {
       registerClearMessagesCallback(null);
       clearSession();
       expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('message persistence', () => {
+    const mockMessages = [
+      { id: 'msg-1', role: 'user', content: 'Hello', timestamp: new Date('2026-01-01T10:00:00Z') },
+      { id: 'msg-2', role: 'assistant', content: 'Hi there!', timestamp: new Date('2026-01-01T10:00:01Z') },
+    ];
+
+    beforeEach(() => {
+      // Configure with persistence enabled
+      configure('https://api.test.com/v1', 'pk_test', false, false, undefined, true);
+    });
+
+    it('should save and load messages when persistence is enabled', () => {
+      const storage: Record<string, string> = {};
+      vi.mocked(localStorage.setItem).mockImplementation((key, value) => { storage[key] = value; });
+      vi.mocked(localStorage.getItem).mockImplementation((key) => storage[key] || null);
+
+      saveMessages(mockMessages);
+      expect(localStorage.setItem).toHaveBeenCalled();
+
+      const loaded = loadPersistedMessages();
+      expect(loaded).not.toBeNull();
+      expect(loaded).toHaveLength(2);
+      expect(loaded![0].content).toBe('Hello');
+      expect(loaded![0].timestamp).toBeInstanceOf(Date);
+    });
+
+    it('should return null when no persisted messages exist', () => {
+      vi.mocked(localStorage.getItem).mockReturnValue(null);
+      const loaded = loadPersistedMessages();
+      expect(loaded).toBeNull();
+    });
+
+    it('should not save when persistence is disabled', () => {
+      configure('https://api.test.com/v1', 'pk_test', false, false, undefined, false);
+      saveMessages(mockMessages);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should not save when consent is not granted', () => {
+      configure('https://api.test.com/v1', 'pk_test', false, false, { consentRequired: true }, true);
+      saveMessages(mockMessages);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('should cap messages at 100', () => {
+      const manyMessages = Array.from({ length: 150 }, (_, i) => ({
+        id: `msg-${i}`,
+        role: 'user' as const,
+        content: `Message ${i}`,
+        timestamp: new Date(),
+      }));
+
+      const storage: Record<string, string> = {};
+      vi.mocked(localStorage.setItem).mockImplementation((key, value) => { storage[key] = value; });
+      vi.mocked(localStorage.getItem).mockImplementation((key) => storage[key] || null);
+
+      saveMessages(manyMessages);
+      const loaded = loadPersistedMessages();
+      expect(loaded).toHaveLength(100);
+      // Should keep the last 100 (most recent)
+      expect(loaded![0].content).toBe('Message 50');
+    });
+
+    it('should clear persisted messages', () => {
+      // Ensure a session ID exists so clearPersistedMessages has a key to clear
+      vi.mocked(localStorage.getItem).mockImplementation((key) =>
+        key === 'chatbot_session_id' ? 'sess_test_123' : null
+      );
+      clearPersistedMessages();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('chatbot_messages_sess_test_123');
+    });
+
+    it('should clear persisted messages when clearSession is called', () => {
+      const storage: Record<string, string> = {};
+      storage['chatbot_session_id'] = 'sess_test_123';
+      vi.mocked(localStorage.getItem).mockImplementation((key) => storage[key] || null);
+
+      clearSession();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('chatbot_session_id');
+      // Also clears message storage
+      expect(localStorage.removeItem).toHaveBeenCalledWith(expect.stringContaining('chatbot_messages_'));
+    });
+
+    it('should use sessionStorage when configured', () => {
+      configure('https://api.test.com/v1', 'pk_test', false, false, { enableSessionStorage: true }, true);
+
+      const storage: Record<string, string> = {};
+      vi.mocked(sessionStorage.setItem).mockImplementation((key, value) => { storage[key] = value; });
+      vi.mocked(sessionStorage.getItem).mockImplementation((key) => storage[key] || null);
+
+      saveMessages(mockMessages);
+      expect(sessionStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('should report persistence status correctly', () => {
+      expect(isPersistMessagesEnabled()).toBe(true);
+
+      configure('https://api.test.com/v1', 'pk_test', false, false, undefined, false);
+      expect(isPersistMessagesEnabled()).toBe(false);
     });
   });
 });

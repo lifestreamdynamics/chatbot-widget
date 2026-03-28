@@ -16,6 +16,7 @@ import {
   exportChat,
   setThemeMode,
   getThemeMode,
+  checkHealth,
 } from '../src/index';
 import * as chatbotService from '../src/services/chatbotService';
 import type { ChatbotConfig, ChatbotEventName } from '../src/types';
@@ -39,15 +40,11 @@ vi.mock('../src/services/chatbotService', () => ({
   registerClearMessagesCallback: vi.fn(),
   isConsentGranted: vi.fn(() => true),
   isConsentRequired: vi.fn(() => false),
-}));
-
-// Mock react-markdown
-vi.mock('react-markdown', () => ({
-  default: ({ children }: { children: string }) => children,
-}));
-
-vi.mock('remark-gfm', () => ({
-  default: () => {},
+  checkHealth: vi.fn().mockResolvedValue(true),
+  loadPersistedMessages: vi.fn().mockReturnValue(null),
+  saveMessages: vi.fn(),
+  clearPersistedMessages: vi.fn(),
+  isPersistMessagesEnabled: vi.fn().mockReturnValue(false),
 }));
 
 // Mock CSS import
@@ -108,6 +105,7 @@ describe('index.tsx', () => {
         defaultConfig.apiKey,
         undefined,
         undefined,
+        undefined,
         undefined
       );
     });
@@ -163,7 +161,8 @@ describe('index.tsx', () => {
         defaultConfig.apiKey,
         undefined,
         undefined,
-        { enableSessionStorage: true, consentRequired: true }
+        { enableSessionStorage: true, consentRequired: true },
+        undefined
       );
     });
   });
@@ -384,6 +383,7 @@ describe('index.tsx', () => {
       expect(typeof api.grantConsent).toBe('function');
       expect(typeof api.revokeConsent).toBe('function');
       expect(typeof api.clearHistory).toBe('function');
+      expect(typeof api.checkHealth).toBe('function');
       expect(typeof api.on).toBe('function');
       expect(typeof api.off).toBe('function');
     });
@@ -485,6 +485,25 @@ describe('index.tsx', () => {
       setThemeMode('light');
       cleanup();
       expect(getThemeMode()).toBe('dark');
+    });
+  });
+
+  // ============================================
+  // CHECK HEALTH TESTS
+  // ============================================
+  describe('checkHealth', () => {
+    it('delegates to service checkHealth', async () => {
+      vi.mocked(chatbotService.checkHealth).mockResolvedValue(true);
+      const result = await checkHealth();
+      expect(result).toBe(true);
+      expect(chatbotService.checkHealth).toHaveBeenCalled();
+    });
+
+    it('passes healthUrl parameter to service', async () => {
+      vi.mocked(chatbotService.checkHealth).mockResolvedValue(true);
+      const result = await checkHealth('https://custom-health.com');
+      expect(result).toBe(true);
+      expect(chatbotService.checkHealth).toHaveBeenCalledWith('https://custom-health.com');
     });
   });
 });
